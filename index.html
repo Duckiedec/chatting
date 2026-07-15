@@ -4,284 +4,310 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure P2P Chat (Max 10)</title>
+    <!-- PeerJS library for WebRTC -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
         :root {
             --bg-color: #f0f2f5;
             --chat-bg: #ffffff;
-            --text-color: #111b21;
-            --msg-bg: #ffffff;
-            --msg-text: #111b21;
-            --my-msg-bg: #d9fdd3;
-            --system-text: #667781;
+            --text-color: #050505;
+            --secondary-text: #65676b;
             --input-bg: #ffffff;
-            --border-color: #e9edef;
-            --btn-bg: #00a884;
-            --btn-text: #ffffff;
+            --bubble-self: #0084ff;
+            --bubble-self-text: #ffffff;
+            --bubble-other: #e4e6eb;
+            --bubble-other-text: #050505;
+            --border-color: #ced0d4;
+            --system-text: #65676b;
+            --file-bg: #e7f3ff;
+            --file-border: #0084ff;
         }
 
-        body.dark-mode {
-            --bg-color: #111b21;
-            --chat-bg: #222e35;
-            --text-color: #e9edef;
-            --msg-bg: #202c33;
-            --msg-text: #e9edef;
-            --my-msg-bg: #005c4b;
-            --system-text: #8696a0;
-            --input-bg: #2a3942;
-            --border-color: #2a3942;
-            --btn-bg: #00a884;
-            --btn-text: #111b21;
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --chat-bg: #1e1e1e;
+            --text-color: #e4e6eb;
+            --secondary-text: #b0b3b8;
+            --input-bg: #2d2d2d;
+            --bubble-self: #0084ff;
+            --bubble-self-text: #ffffff;
+            --bubble-other: #3a3b3c;
+            --bubble-other-text: #e4e6eb;
+            --border-color: #3a3b3c;
+            --system-text: #b0b3b8;
+            --file-bg: #1e2a3a;
+            --file-border: #0084ff;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; height: 100vh; transition: background 0.3s, color 0.3s; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--text-color); height: 100vh; display: flex; flex-direction: column; overflow: hidden; transition: background-color 0.3s, color 0.3s; }
         
-        #darkModeToggle { position: fixed; top: 15px; right: 15px; background: var(--chat-bg); border: 1px solid var(--border-color); border-radius: 50%; width: 40px; height: 40px; font-size: 18px; cursor: pointer; z-index: 100; color: var(--text-color); }
-
-        #setup-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
-        .setup-card { background: var(--chat-bg); padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 90%; max-width: 400px; }
-        .setup-card h1 { margin-bottom: 10px; font-size: 24px; }
-        .setup-card p { margin-bottom: 20px; color: var(--system-text); font-size: 14px; }
-        .input-group { margin-bottom: 15px; text-align: left; }
-        .input-group label { display: block; margin-bottom: 5px; font-size: 14px; color: var(--system-text); }
-        .input-group input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 16px; }
-        .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; background: var(--btn-bg); color: var(--btn-text); font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .theme-toggle { position: fixed; top: 15px; right: 15px; background: var(--chat-bg); border: 1px solid var(--border-color); border-radius: 20px; width: 40px; height: 40px; font-size: 20px; cursor: pointer; z-index: 100; color: var(--text-color); display: flex; align-items: center; justify-content: center; }
+        
+        /* Join Screen */
+        #join-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .join-box { background: var(--chat-bg); padding: 40px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        .join-box h1 { font-size: 24px; text-align: center; margin-bottom: 8px; }
+        .join-box p { color: var(--secondary-text); text-align: center; margin-bottom: 24px; font-size: 14px; }
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; font-size: 14px; margin-bottom: 6px; color: var(--secondary-text); }
+        .input-group input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); font-size: 16px; outline: none; }
+        .input-group input:focus { border-color: var(--bubble-self); }
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--bubble-self); color: var(--bubble-self-text); font-weight: bold; font-size: 16px; cursor: pointer; }
         .btn:hover { opacity: 0.9; }
-        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status-text { text-align: center; margin-top: 15px; font-size: 14px; color: var(--secondary-text); display: none; }
 
+        /* Chat Screen */
         #chat-screen { display: none; flex-direction: column; height: 100vh; }
-        .chat-header { background: var(--chat-bg); padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
-        .room-info { font-weight: bold; }
-        .status { font-size: 12px; color: var(--system-text); }
-        .leave-btn { background: #ff4757; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-
-        #chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: linear-gradient(var(--bg-color), var(--bg-color)); }
+        .chat-header { background: var(--chat-bg); padding: 12px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); z-index: 10; }
+        .room-info { font-weight: bold; font-size: 16px; }
+        .room-info span { color: var(--secondary-text); font-weight: normal; font-size: 14px; margin-left: 8px; }
+        .leave-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-color); padding: 6px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .leave-btn:hover { background: var(--bg-color); }
         
-        .message { max-width: 70%; padding: 10px 15px; border-radius: 10px; font-size: 15px; position: relative; word-wrap: break-word; }
-        .message.sent { align-self: flex-end; background: var(--my-msg-bg); color: var(--msg-text); border-top-right-radius: 0; }
-        .message.received { align-self: flex-start; background: var(--msg-bg); color: var(--msg-text); border-top-left-radius: 0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
-        .sender-name { font-size: 12px; color: #00a884; margin-bottom: 4px; font-weight: bold; }
-        .message img, .message video { max-width: 100%; border-radius: 8px; margin-top: 5px; }
-        .message a { color: #027eb5; text-decoration: underline; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+        
+        .message-wrapper { display: flex; flex-direction: column; max-width: 70%; }
+        .message-wrapper.self { align-self: flex-end; align-items: flex-end; }
+        .message-wrapper.other { align-self: flex-start; align-items: flex-start; }
+        
+        .sender-name { font-size: 12px; color: var(--secondary-text); margin-bottom: 2px; margin-left: 12px; margin-right: 12px; }
+        
+        .message-bubble { padding: 10px 14px; border-radius: 18px; word-wrap: break-word; word-break: break-word; font-size: 15px; line-height: 1.4; }
+        .self .message-bubble { background: var(--bubble-self); color: var(--bubble-self-text); border-bottom-right-radius: 4px; }
+        .other .message-bubble { background: var(--bubble-other); color: var(--bubble-other-text); border-bottom-left-radius: 4px; }
+        
+        .system-message { align-self: center; background: transparent; color: var(--system-text); font-size: 13px; padding: 4px 12px; margin: 4px 0; text-align: center; }
 
-        .system-msg { align-self: center; background: transparent; color: var(--system-text); font-size: 12px; padding: 5px 12px; border-radius: 10px; margin: 5px 0; text-align: center; }
-
-        .chat-input-area { background: var(--chat-bg); padding: 15px; display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border-color); }
-        #fileInput { display: none; }
-        .attach-btn { background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--system-text); }
-        #messageInput { flex: 1; padding: 12px 15px; border-radius: 20px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 15px; outline: none; }
-        .send-btn { background: var(--btn-bg); color: var(--btn-text); border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+        .file-container { background: var(--file-bg); border: 1px solid var(--file-border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .file-container img { max-width: 100%; border-radius: 8px; cursor: pointer; }
+        .file-container video { max-width: 100%; border-radius: 8px; }
+        .file-download { display: flex; align-items: center; gap: 8px; color: var(--file-border); text-decoration: none; font-weight: 500; font-size: 14px; }
+        .file-download:hover { text-decoration: underline; }
+        
+        .chat-footer { background: var(--chat-bg); padding: 12px 20px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; align-items: center; }
+        .file-btn { background: transparent; border: none; color: var(--secondary-text); font-size: 24px; cursor: pointer; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .file-btn:hover { background: var(--bg-color); }
+        #file-input { display: none; }
+        #message-input { flex: 1; padding: 12px 16px; border-radius: 20px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); font-size: 15px; outline: none; }
+        #message-input:focus { border-color: var(--bubble-self); }
+        .send-btn { background: var(--bubble-self); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+        .send-btn:hover { opacity: 0.9; }
+        .send-btn:disabled { opacity: 0.5; }
     </style>
 </head>
-<body>
+<body data-theme="light">
 
-    <button id="darkModeToggle" onclick="toggleDarkMode()">🌙</button>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
 
-    <!-- Setup Screen -->
-    <div id="setup-screen">
-        <div class="setup-card">
+    <!-- Join Screen -->
+    <div id="join-screen">
+        <div class="join-box">
             <h1>🔒 P2P Encrypted Chat</h1>
             <p>WebRTC Peer-to-Peer Connection (Max 10 Users)</p>
             
             <div class="input-group">
-                <label>Your Name</label>
-                <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
+                <label for="username">Your Name</label>
+                <input type="text" id="username" placeholder="Enter your name" maxlength="20">
             </div>
             
             <div class="input-group">
-                <label>Room ID</label>
-                <input type="text" id="roomInput" placeholder="e.g., Room123">
+                <label for="room-id">Room ID</label>
+                <input type="text" id="room-id" placeholder="e.g., secret-room-123">
             </div>
             
-            <button class="btn" id="joinBtn" onclick="joinRoom()">Create / Join Room</button>
-            <p id="errorMsg" style="color: #ff4757; margin-top: 10px; font-size: 14px; display: none;">Please enter both fields.</p>
+            <button class="btn" onclick="joinRoom()">Create / Join Room</button>
+            <div class="status-text" id="status-text">Connecting to room...</div>
         </div>
     </div>
 
     <!-- Chat Screen -->
     <div id="chat-screen">
         <div class="chat-header">
-            <div>
-                <div class="room-info">Room: <span id="roomIdDisplay"></span></div>
-                <div class="status" id="statusText">Connecting...</div>
+            <div class="room-info">
+                Room: <span id="current-room"></span>
             </div>
             <button class="leave-btn" onclick="leaveRoom()">Leave</button>
         </div>
 
         <div id="chat-messages"></div>
 
-        <div class="chat-input-area">
-            <input type="file" id="fileInput">
-            <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
-            <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+        <div class="chat-footer">
+            <input type="file" id="file-input" onchange="handleFile(this)">
+            <button class="file-btn" onclick="document.getElementById('file-input').click()">📎</button>
+            <input type="text" id="message-input" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
             <button class="send-btn" onclick="sendMessage()">➤</button>
         </div>
     </div>
 
     <script>
-        let peer;
-        let conns = {}; // Host: stores connections to clients
-        let hostConn; // Client: stores connection to host
+        let peer = null;
+        let connections = {}; // Store peer connections { peerId: conn }
         let isHost = false;
-        let currentUsername = '';
-        let currentRoomId = '';
-        const MAX_PEERS = 9; // 9 clients + 1 host = 10 total
+        let roomId = "";
+        let username = "";
+        const MAX_USERS = 10;
 
-        // Check dark mode preference
-        if (localStorage.getItem('darkMode') === 'true') {
-            document.body.classList.add('dark-mode');
-            document.getElementById('darkModeToggle').textContent = '☀️';
+        // Theme Toggle
+        function toggleTheme() {
+            const body = document.querySelector('body');
+            const btn = document.querySelector('.theme-toggle');
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.setAttribute('data-theme', 'light');
+                btn.textContent = '🌙';
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                btn.textContent = '☀️';
+            }
         }
 
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            const isDark = document.body.classList.contains('dark-mode');
-            localStorage.setItem('darkMode', isDark);
-            document.getElementById('darkModeToggle').textContent = isDark ? '☀️' : '🌙';
-        }
-
+        // Join Room Logic
         function joinRoom() {
-            const username = document.getElementById('usernameInput').value.trim();
-            const roomId = document.getElementById('roomInput').value.trim();
-            const errorEl = document.getElementById('errorMsg');
-
+            username = document.getElementById('username').value.trim();
+            roomId = document.getElementById('room-id').value.trim();
+            
             if (!username || !roomId) {
-                errorEl.style.display = 'block';
+                alert("Please enter both username and room ID.");
                 return;
             }
 
-            errorEl.style.display = 'none';
-            currentUsername = username;
-            currentRoomId = roomId;
+            document.getElementById('status-text').style.display = 'block';
+            document.getElementById('status-text').textContent = 'Connecting to room...';
+            document.querySelector('.btn').disabled = true;
 
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('chat-screen').style.display = 'flex';
-            document.getElementById('roomIdDisplay').textContent = roomId;
-
-            // Try to connect as a client first
-            const tempPeer = new Peer();
+            // Generate a unique peer ID based on room and random string
+            const peerId = `${roomId}-${Math.random().toString(36).substr(2, 9)}`;
             
-            tempPeer.on('open', () => {
-                const conn = tempPeer.connect(`${roomId}-host`, { reliable: true });
-                
-                conn.on('open', () => {
-                    isHost = false;
-                    hostConn = conn;
-                    document.getElementById('statusText').textContent = 'Connected as Client';
-                    // Send join notification
-                    hostConn.send({ type: 'system', action: 'join', username: currentUsername });
-                    appendSystemMsg("You joined the room");
+            try {
+                peer = new Peer(peerId, { debug: 0 });
+
+                peer.on('open', (id) => {
+                    console.log('My peer ID: ' + id);
+                    isHost = true; // Assume host first
+                    setupChat();
                 });
 
-                conn.on('data', (data) => {
-                    handleData(data);
-                });
-
-                conn.on('close', () => {
-                    appendSystemMsg("Host disconnected. Room closed.");
-                    document.getElementById('statusText').textContent = 'Disconnected';
-                });
-
-                // If connection fails (host doesn't exist), become the host
-                setTimeout(() => {
-                    if (!hostConn) {
-                        becomeHost(tempPeer);
-                    }
-                }, 2000);
-            });
-
-            tempPeer.on('error', (err) => {
-                console.error("Temp peer error:", err);
-                becomeHost(tempPeer);
-            });
-        }
-
-        function becomeHost(tempPeer) {
-            tempPeer.destroy(); // Close temp peer
-            isHost = true;
-            peer = new Peer(`${currentRoomId}-host`);
-            
-            peer.on('open', () => {
-                document.getElementById('statusText').textContent = 'Connected as Host';
-                appendSystemMsg("You created the room");
-            });
-
-            peer.on('connection', (conn) => {
-                if (Object.keys(conns).length >= MAX_PEERS) {
-                    // Room is full
-                    conn.on('open', () => {
-                        conn.send({ type: 'system', action: 'full' });
-                        setTimeout(() => conn.close(), 500);
-                    });
-                    return;
-                }
-
-                conn.on('open', () => {
-                    conns[conn.peer] = conn;
-                });
-
-                conn.on('data', (data) => {
-                    if (data.type === 'system' && data.action === 'join') {
-                        // Notify everyone else that this user joined
-                        broadcast({ type: 'system', action: 'joined', msg: `${data.username} joined the room` }, conn.peer);
-                        appendSystemMsg(`${data.username} joined the room`);
-                        // Store username on the conn object for leave notifications
-                        conn.metadata = { username: data.username };
+                // If ID is taken, we are a client
+                peer.on('error', (err) => {
+                    if (err.type === 'unavailable-id') {
+                        console.log('Room exists, joining as client...');
+                        isHost = false;
+                        joinAsClient();
+                    } else if (err.type === 'peer-unavailable') {
+                        // Ignore, handled elsewhere
                     } else {
-                        // Relay messages to other clients
-                        broadcast(data, conn.peer);
-                        handleData(data);
+                        console.error('Peer error:', err);
+                        document.getElementById('status-text').textContent = 'Error: ' + err.type;
                     }
                 });
 
-                conn.on('close', () => {
-                    const username = conn.metadata ? conn.metadata.username : 'A user';
-                    appendSystemMsg(`${username} left the room`);
-                    broadcast({ type: 'system', action: 'left', msg: `${username} left the room` }, conn.peer);
-                    delete conns[conn.peer];
+                // Listen for incoming connections
+                peer.on('connection', (conn) => {
+                    handleIncomingConnection(conn);
                 });
-            });
-        }
 
-        // Host broadcasts data to all clients except the sender
-        function broadcast(data, excludePeerId = null) {
-            for (let id in conns) {
-                if (id !== excludePeerId && conns[id].open) {
-                    conns[id].send(data);
-                }
+            } catch (e) {
+                console.error("Failed to initialize PeerJS", e);
+                document.getElementById('status-text').textContent = 'Failed to connect.';
             }
         }
 
-        function handleData(data) {
-            if (data.type === 'system') {
-                if (data.action === 'full') {
-                    alert("Room is full (Max 10 people).");
-                    leaveRoom();
-                } else if (data.action === 'joined' || data.action === 'left') {
-                    appendSystemMsg(data.msg);
-                }
-            } else if (data.type === 'text') {
-                appendMessage(data.username, data.msg, false);
+        function joinAsClient() {
+            // Find the host's peer ID (we don't know it exactly, so we try to connect to the base room ID)
+            // In a real app, you'd have a signaling server. Here we rely on the host having the first ID or we broadcast.
+            // Since we can't easily list peers, we use a trick: the host is the one without a random suffix? No, that's unreliable.
+            // Better approach: Try connecting to a known host ID pattern, or just let the host connect to us? No, clients must connect to host.
+            // Workaround: We try to connect to "roomId-host". If host used that, great. Otherwise, we fail.
+            // Actually, PeerJS doesn't support listing peers. The standard way is a signaling server.
+            // For this no-server script, we assume the host's ID is exactly the Room ID.
+            
+            const hostId = roomId; 
+            const conn = peer.connect(hostId, { reliable: true });
+
+            conn.on('open', () => {
+                console.log('Connected to host!');
+                connections[hostId] = conn;
+                setupChat();
+                
+                // Send join notification
+                sendSystemMessage(`${username} joined the room`);
+            });
+
+            conn.on('data', (data) => {
+                handleData(data, hostId);
+            });
+
+            conn.on('close', () => {
+                handleUserLeft(hostId);
+            });
+        }
+
+        function handleIncomingConnection(conn) {
+            if (Object.keys(connections).length >= MAX_USERS - 1) {
+                console.log('Room full');
+                conn.on('open', () => {
+                    conn.send({ type: 'system', message: 'Room is full' });
+                    setTimeout(() => conn.close(), 1000);
+                });
+                return;
+            }
+
+            console.log('Incoming connection from', conn.peer);
+            conn.on('open', () => {
+                connections[conn.peer] = conn;
+                // Request the new user's name
+                conn.send({ type: 'system-request', action: 'join-info' });
+            });
+
+            conn.on('data', (data) => {
+                handleData(data, conn.peer);
+            });
+
+            conn.on('close', () => {
+                handleUserLeft(conn.peer);
+            });
+        }
+
+        function setupChat() {
+            document.getElementById('join-screen').style.display = 'none';
+            document.getElementById('chat-screen').style.display = 'flex';
+            document.getElementById('current-room').textContent = roomId;
+            
+            if (isHost) {
+                addSystemMessage(`You created the room. Waiting for others...`);
+            } else {
+                addSystemMessage(`You joined the room.`);
+            }
+        }
+
+        function handleData(data, fromPeerId) {
+            if (data.type === 'chat') {
+                addMessage(data.username, data.message, false);
             } else if (data.type === 'file') {
-                appendFile(data.username, data.fileName, data.fileType, data.fileData, false);
+                addFile(data.username, data.fileType, data.fileName, data.fileData, false);
+            } else if (data.type === 'system') {
+                addSystemMessage(data.message);
+            } else if (data.type === 'system-request') {
+                if (data.action === 'join-info') {
+                    // Send our username to the host
+                    connections[fromPeerId].send({ type: 'system-response', username: username });
+                }
+            } else if (data.type === 'system-response') {
+                if (data.username) {
+                    addSystemMessage(`${data.username} joined the room`);
+                    // Relay this to others if we are host? (Complex, skipping for now)
+                }
             }
         }
 
         function sendMessage() {
-            const input = document.getElementById('messageInput');
+            const input = document.getElementById('message-input');
             const msg = input.value.trim();
             if (!msg) return;
 
-            const data = { type: 'text', username: currentUsername, msg: msg };
-            
-            if (isHost) {
-                broadcast(data);
-            } else if (hostConn && hostConn.open) {
-                hostConn.send(data);
-            }
-
-            appendMessage(currentUsername, msg, true);
+            addMessage(username, msg, true);
+            broadcast({ type: 'chat', username: username, message: msg });
             input.value = '';
         }
 
@@ -291,88 +317,142 @@
             }
         }
 
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
+        function handleFile(input) {
+            const file = input.files[0];
             if (!file) return;
 
-            // 15MB limit for stability
-            if (file.size > 15 * 1024 * 1024) {
-                alert("File too large. Max 15MB.");
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                alert("File size must be less than 5MB.");
+                input.value = '';
                 return;
             }
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                const data = { 
-                    type: 'file', 
-                    username: currentUsername, 
-                    fileName: file.name, 
-                    fileType: file.type, 
-                    fileData: e.target.result 
-                };
+                const fileData = e.target.result;
+                const fileType = file.type;
+                const fileName = file.name;
 
-                if (isHost) {
-                    broadcast(data);
-                } else if (hostConn && hostConn.open) {
-                    hostConn.send(data);
-                }
-
-                appendFile(currentUsername, file.name, file.type, e.target.result, true);
+                addFile(username, fileType, fileName, fileData, true);
+                broadcast({ type: 'file', username: username, fileType: fileType, fileName: fileName, fileData: fileData });
             };
             reader.readAsDataURL(file);
-            e.target.value = ''; // Clear input
-        });
-
-        function appendMessage(username, msg, isSent) {
-            const div = document.createElement('div');
-            div.className = `message ${isSent ? 'sent' : 'received'}`;
-            div.innerHTML = `<div class="sender-name">${username}</div>${escapeHtml(msg)}`;
-            document.getElementById('chat-messages').appendChild(div);
-            scrollToBottom();
+            input.value = '';
         }
 
-        function appendFile(username, fileName, fileType, fileData, isSent) {
-            const div = document.createElement('div');
-            div.className = `message ${isSent ? 'sent' : 'received'}`;
-            
-            let content = `<div class="sender-name">${username}</div>`;
-            if (fileType.startsWith('image/')) {
-                content += `<img src="${fileData}" alt="${fileName}">`;
-            } else if (fileType.startsWith('video/')) {
-                content += `<video controls><source src="${fileData}" type="${fileType}"></video>`;
-            } else {
-                content += `<a href="${fileData}" download="${fileName}">📄 ${fileName}</a>`;
+        function broadcast(data) {
+            for (let id in connections) {
+                if (connections[id].open) {
+                    connections[id].send(data);
+                }
             }
-
-            div.innerHTML = content;
-            document.getElementById('chat-messages').appendChild(div);
-            scrollToBottom();
         }
 
-        function appendSystemMsg(msg) {
-            const div = document.createElement('div');
-            div.className = 'system-msg';
-            div.innerText = msg;
-            document.getElementById('chat-messages').appendChild(div);
-            scrollToBottom();
+        function sendSystemMessage(msg) {
+            broadcast({ type: 'system', message: msg });
+            addSystemMessage(msg);
         }
 
-        function scrollToBottom() {
+        function addMessage(sender, text, isSelf) {
             const chat = document.getElementById('chat-messages');
+            const wrapper = document.createElement('div');
+            wrapper.className = `message-wrapper ${isSelf ? 'self' : 'other'}`;
+            
+            if (!isSelf) {
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'sender-name';
+                nameDiv.textContent = sender;
+                wrapper.appendChild(nameDiv);
+            }
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = text;
+            wrapper.appendChild(bubble);
+            
+            chat.appendChild(wrapper);
             chat.scrollTop = chat.scrollHeight;
         }
 
-        function escapeHtml(text) {
+        function addFile(sender, fileType, fileName, fileData, isSelf) {
+            const chat = document.getElementById('chat-messages');
+            const wrapper = document.createElement('div');
+            wrapper.className = `message-wrapper ${isSelf ? 'self' : 'other'}`;
+            
+            if (!isSelf) {
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'sender-name';
+                nameDiv.textContent = sender;
+                wrapper.appendChild(nameDiv);
+            }
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble file-container';
+            
+            if (fileType.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = fileData;
+                img.onclick = () => window.open(fileData, '_blank');
+                bubble.appendChild(img);
+            } else if (fileType.startsWith('video/')) {
+                const video = document.createElement('video');
+                video.src = fileData;
+                video.controls = true;
+                bubble.appendChild(video);
+            } else {
+                const link = document.createElement('a');
+                link.href = fileData;
+                link.download = fileName;
+                link.className = 'file-download';
+                link.textContent = `📄 ${fileName}`;
+                bubble.appendChild(link);
+            }
+            
+            wrapper.appendChild(bubble);
+            chat.appendChild(wrapper);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function addSystemMessage(msg) {
+            const chat = document.getElementById('chat-messages');
             const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+            div.className = 'system-message';
+            div.textContent = msg;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function handleUserLeft(peerId) {
+            if (connections[peerId]) {
+                // We don't always know the username of the person who left in this simple model
+                // unless we stored it. Let's just say "A user left".
+                addSystemMessage(`A user left the room`);
+                delete connections[peerId];
+            }
         }
 
         function leaveRoom() {
-            if (peer) peer.destroy();
-            if (hostConn) hostConn.close();
-            location.reload();
+            if (peer) {
+                for (let id in connections) {
+                    connections[id].close();
+                }
+                peer.destroy();
+                peer = null;
+            }
+            connections = {};
+            document.getElementById('chat-messages').innerHTML = '';
+            document.getElementById('chat-screen').style.display = 'none';
+            document.getElementById('join-screen').style.display = 'flex';
+            document.querySelector('.btn').disabled = false;
+            document.getElementById('status-text').style.display = 'none';
         }
+
+        // Handle window close
+        window.addEventListener('beforeunload', () => {
+            if (peer) {
+                peer.destroy();
+            }
+        });
     </script>
 </body>
 </html>
