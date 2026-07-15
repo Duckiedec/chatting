@@ -9,24 +9,106 @@
 <style>
   :root{
     --bg-deep:#1B2430;
+    --bg-glow:#26313f;
     --bg-panel:#242F3D;
     --bg-panel-2:#2C3846;
     --bg-chat:#1F2937;
+    --surface-sunken:#171F29;
+    --input-bg:#182029;
+    --composer-bg:#20293450;
+    --placeholder:#5A6779;
+    --tick-color:#3A4756;
+    --tick-major:#4C5B6E;
+    --header-grad-1:#26313f;
+    --header-grad-2:#212B38;
+    --file-overlay-mine:rgba(0,0,0,0.15);
+    --file-overlay-theirs:rgba(255,255,255,0.04);
+    --on-dark-text:#20160A;
+    --on-teal-text:#0E2320;
     --accent-brass:#D9A441;
     --accent-brass-dim:#8C6E33;
+    --accent-brass-glow:rgba(217,164,65,0.7);
     --accent-teal:#5FB8B0;
+    --accent-teal-glow:rgba(95,184,176,0.7);
     --text-primary:#EDEFF2;
     --text-muted:#8B98A8;
     --error:#E1614B;
+    --error-soft-bg:rgba(225,97,75,0.12);
+    --error-soft-border:rgba(225,97,75,0.4);
+    --error-soft-text:#F3A493;
     --border:#374253;
     --radius:10px;
+  }
+
+  /* ---- Light theme: bright, high-contrast, same layout ---- */
+  [data-theme="light"]{
+    --bg-deep:#E9EDF2;
+    --bg-glow:#FFFFFF;
+    --bg-panel:#FFFFFF;
+    --bg-panel-2:#F1F4F8;
+    --bg-chat:#F6F8FA;
+    --surface-sunken:#EEF1F5;
+    --input-bg:#FFFFFF;
+    --composer-bg:#F6F8FAcc;
+    --placeholder:#9AA4B2;
+    --tick-color:#D3D9E1;
+    --tick-major:#B7C0CC;
+    --header-grad-1:#FFFFFF;
+    --header-grad-2:#F1F4F8;
+    --file-overlay-mine:rgba(0,0,0,0.06);
+    --file-overlay-theirs:rgba(0,0,0,0.03);
+    --on-dark-text:#241705;
+    --accent-brass:#C1791F;
+    --accent-brass-dim:#8C6E33;
+    --accent-brass-glow:rgba(193,121,31,0.35);
+    --accent-teal:#1F8A80;
+    --accent-teal-glow:rgba(31,138,128,0.3);
+    --text-primary:#1B2430;
+    --text-muted:#5C6B7D;
+    --error:#C9432D;
+    --error-soft-bg:rgba(201,67,45,0.08);
+    --error-soft-border:rgba(201,67,45,0.35);
+    --error-soft-text:#B23A26;
+    --border:#DCE2E9;
+  }
+
+  /* ---- Colored theme: after-hours coral & cyan on deep plum ---- */
+  [data-theme="colored"]{
+    --bg-deep:#241A31;
+    --bg-glow:#33223F;
+    --bg-panel:#2E2140;
+    --bg-panel-2:#38284D;
+    --bg-chat:#221A30;
+    --surface-sunken:#1D1527;
+    --input-bg:#251A34;
+    --composer-bg:#241A3150;
+    --placeholder:#8A76A3;
+    --tick-color:#443159;
+    --tick-major:#5B4275;
+    --header-grad-1:#33223F;
+    --header-grad-2:#28193A;
+    --file-overlay-mine:rgba(0,0,0,0.15);
+    --file-overlay-theirs:rgba(255,255,255,0.05);
+    --on-dark-text:#2B1206;
+    --accent-brass:#FF7A59;
+    --accent-brass-dim:#B85742;
+    --accent-brass-glow:rgba(255,122,89,0.6);
+    --accent-teal:#22D3C8;
+    --accent-teal-glow:rgba(34,211,200,0.6);
+    --text-primary:#F5EEFB;
+    --text-muted:#B3A0C7;
+    --error:#FF5C7A;
+    --error-soft-bg:rgba(255,92,122,0.14);
+    --error-soft-border:rgba(255,92,122,0.4);
+    --error-soft-text:#FFB3C2;
+    --border:#4A3763;
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
   body{
     margin:0;
     background:
-      radial-gradient(ellipse at top, #26313f 0%, var(--bg-deep) 60%);
+      radial-gradient(ellipse at top, var(--bg-glow) 0%, var(--bg-deep) 60%);
     color:var(--text-primary);
     font-family:'Inter',sans-serif;
     min-height:100vh;
@@ -34,6 +116,7 @@
     align-items:center;
     justify-content:center;
     padding:20px;
+    transition:background .25s ease, color .25s ease;
   }
   .mono{font-family:'JetBrains Mono',monospace;}
   .display{font-family:'Oswald',sans-serif;}
@@ -81,7 +164,7 @@
   /* Dial */
   .dial-wrap{
     margin:22px 0 20px;
-    background:#171F29;
+    background:var(--surface-sunken);
     border:1px solid var(--border);
     border-radius:12px;
     padding:16px 18px 14px;
@@ -118,23 +201,23 @@
   }
   .tick{
     flex:1;
-    background:#3A4756;
+    background:var(--tick-color);
     width:2px;
     height:10px;
     border-radius:1px;
   }
-  .tick.major{ height:18px; background:#4C5B6E; }
+  .tick.major{ height:18px; background:var(--tick-major); }
   .needle{
     position:absolute;
     bottom:0;
     top:0;
     width:2px;
     background:var(--accent-brass);
-    box-shadow:0 0 8px 1px rgba(217,164,65,0.7);
+    box-shadow:0 0 8px 1px var(--accent-brass-glow);
     left:2%;
     transition:left .35s cubic-bezier(.2,.8,.2,1), background .2s ease, box-shadow .2s ease;
   }
-  .needle.locked{ background:var(--accent-teal); box-shadow:0 0 10px 2px rgba(95,184,176,0.7); }
+  .needle.locked{ background:var(--accent-teal); box-shadow:0 0 10px 2px var(--accent-teal-glow); }
 
   /* Form fields */
   .field{ margin-bottom:14px; }
@@ -148,7 +231,7 @@
   }
   .field input, .field select{
     width:100%;
-    background:#182029;
+    background:var(--input-bg);
     border:1px solid var(--border);
     color:var(--text-primary);
     padding:11px 12px;
@@ -158,17 +241,17 @@
     outline:none;
     transition:border-color .15s ease, box-shadow .15s ease;
   }
-  .field input::placeholder{ color:#5A6779; }
+  .field input::placeholder{ color:var(--placeholder); }
   .field input:focus, .field select:focus{
     border-color:var(--accent-teal);
-    box-shadow:0 0 0 3px rgba(95,184,176,0.15);
+    box-shadow:0 0 0 3px var(--accent-teal-glow);
   }
 
   .mode-toggle{
     display:flex;
     gap:8px;
     margin:18px 0 16px;
-    background:#171F29;
+    background:var(--surface-sunken);
     padding:5px;
     border-radius:10px;
     border:1px solid var(--border);
@@ -190,7 +273,7 @@
   }
   .mode-btn.active{
     background:var(--accent-brass);
-    color:#20160A;
+    color:var(--on-dark-text);
     font-weight:600;
   }
 
@@ -203,7 +286,7 @@
     border-radius:9px;
     border:none;
     background:var(--accent-teal);
-    color:#0E2320;
+    color:var(--on-teal-text);
     font-family:'Oswald',sans-serif;
     font-size:15px;
     letter-spacing:0.08em;
@@ -218,9 +301,9 @@
 
   .error-msg{
     display:none;
-    background:rgba(225,97,75,0.12);
-    border:1px solid rgba(225,97,75,0.4);
-    color:#F3A493;
+    background:var(--error-soft-bg);
+    border:1px solid var(--error-soft-border);
+    color:var(--error-soft-text);
     font-size:12.5px;
     padding:9px 11px;
     border-radius:7px;
@@ -252,21 +335,49 @@
     overflow:hidden;
     flex-direction:column;
     box-shadow:0 20px 60px rgba(0,0,0,0.45);
+    position:relative;
   }
   .chat-app.visible{ display:flex; }
+
+  .toast-stack{
+    position:absolute;
+    top:66px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    z-index:30;
+    pointer-events:none;
+  }
+  .toast-item{
+    background:var(--surface-sunken);
+    border:1px solid var(--border);
+    color:var(--text-primary);
+    font-size:12px;
+    padding:7px 14px;
+    border-radius:20px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.35);
+    white-space:nowrap;
+    opacity:0;
+    animation:toastIn .25s ease forwards, toastOut .3s ease forwards 2.85s;
+  }
+  @keyframes toastIn{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
+  @keyframes toastOut{ to{opacity:0; transform:translateY(-6px);} }
 
   .chat-header{
     display:flex;
     align-items:center;
     justify-content:space-between;
     padding:14px 18px;
-    background:linear-gradient(180deg,#26313f,#212B38);
+    background:linear-gradient(180deg,var(--header-grad-1),var(--header-grad-2));
     border-bottom:1px solid var(--border);
   }
   .chat-header .ch-left{ display:flex; align-items:center; gap:12px; }
   .ch-freq{
     font-family:'JetBrains Mono',monospace;
-    background:#171F29;
+    background:var(--surface-sunken);
     border:1px solid var(--border);
     color:var(--accent-teal);
     padding:6px 10px;
@@ -292,7 +403,7 @@
   .on-air .dot{
     width:7px; height:7px; border-radius:50%;
     background:var(--accent-teal);
-    box-shadow:0 0 6px 2px rgba(95,184,176,0.7);
+    box-shadow:0 0 6px 2px var(--accent-teal-glow);
     animation:pulse 1.8s infinite ease-in-out;
   }
   @keyframes pulse{
@@ -360,7 +471,7 @@
   }
   .msg-row.mine .bubble{
     background:var(--accent-brass);
-    color:#20160A;
+    color:var(--on-dark-text);
     border-bottom-right-radius:3px;
   }
   .msg-row.theirs .bubble{
@@ -388,19 +499,19 @@
     display:flex;
     align-items:center;
     gap:10px;
-    background:rgba(0,0,0,0.15);
+    background:var(--file-overlay-mine);
     border-radius:8px;
     padding:9px 10px;
     margin-top:2px;
     text-decoration:none;
     color:inherit;
   }
-  .msg-row.theirs .file-card{ background:rgba(255,255,255,0.04); }
+  .msg-row.theirs .file-card{ background:var(--file-overlay-theirs); }
   .file-icon{
     width:34px; height:34px;
     border-radius:7px;
     background:var(--accent-teal);
-    color:#0E2320;
+    color:var(--on-teal-text);
     display:flex;
     align-items:center;
     justify-content:center;
@@ -419,14 +530,14 @@
     gap:8px;
     padding:12px 14px;
     border-top:1px solid var(--border);
-    background:#20293450;
+    background:var(--composer-bg);
   }
   .attach-btn, .send-btn{
     flex-shrink:0;
     width:40px; height:40px;
     border-radius:9px;
     border:1px solid var(--border);
-    background:#182029;
+    background:var(--input-bg);
     color:var(--text-muted);
     display:flex;
     align-items:center;
@@ -436,11 +547,11 @@
     transition:border-color .15s ease, color .15s ease;
   }
   .attach-btn:hover{ color:var(--accent-teal); border-color:var(--accent-teal); }
-  .send-btn{ background:var(--accent-teal); color:#0E2320; border:none; font-size:15px; }
+  .send-btn{ background:var(--accent-teal); color:var(--on-teal-text); border:none; font-size:15px; }
   .send-btn:hover{ filter:brightness(1.08); }
   .text-input{
     flex:1;
-    background:#182029;
+    background:var(--input-bg);
     border:1px solid var(--border);
     color:var(--text-primary);
     padding:10px 13px;
@@ -456,7 +567,7 @@
     align-items:center;
     gap:8px;
     padding:8px 14px;
-    background:#182029;
+    background:var(--input-bg);
     border-top:1px solid var(--border);
     font-size:12px;
     color:var(--text-muted);
@@ -470,16 +581,53 @@
   }
 
   ::-webkit-scrollbar{ width:8px; }
-  ::-webkit-scrollbar-thumb{ background:#3A4756; border-radius:4px; }
+  ::-webkit-scrollbar-thumb{ background:var(--tick-color); border-radius:4px; }
   ::-webkit-scrollbar-track{ background:transparent; }
+
+  /* ================= THEME SWITCHER ================= */
+  .theme-switcher{
+    position:fixed;
+    top:16px;
+    right:16px;
+    display:flex;
+    gap:6px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    padding:6px;
+    border-radius:30px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.3);
+    z-index:100;
+  }
+  .theme-swatch{
+    width:26px;
+    height:26px;
+    border-radius:50%;
+    border:2px solid transparent;
+    cursor:pointer;
+    padding:0;
+    position:relative;
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  .theme-swatch:hover{ transform:scale(1.08); }
+  .theme-swatch.active{ border-color:var(--accent-teal); }
+  .theme-swatch[data-swatch="dark"]{ background:linear-gradient(135deg,#1B2430 50%,#D9A441 50%); }
+  .theme-swatch[data-swatch="light"]{ background:linear-gradient(135deg,#F1F4F8 50%,#C1791F 50%); }
+  .theme-swatch[data-swatch="colored"]{ background:linear-gradient(135deg,#241A31 50%,#FF7A59 50%); }
 
   @media (max-width:520px){
     .chat-app{ height:92vh; border-radius:12px; }
     .console{ padding:22px 18px 20px; }
+    .theme-switcher{ top:10px; right:10px; }
   }
 </style>
 </head>
 <body>
+
+<div class="theme-switcher" id="themeSwitcher">
+  <button class="theme-swatch" data-swatch="dark" title="Dark theme"></button>
+  <button class="theme-swatch" data-swatch="light" title="Light theme"></button>
+  <button class="theme-swatch" data-swatch="colored" title="Colored theme"></button>
+</div>
 
 <!-- ================= LANDING ================= -->
 <div class="console" id="landing">
@@ -551,6 +699,7 @@
       No messages, photos, videos or files in this room so far. Send the first one below.
     </div>
   </div>
+  <div class="toast-stack" id="toastStack"></div>
 
   <div class="upload-preview-bar" id="uploadPreviewBar">
     <span id="uploadPreviewText">Attaching file…</span>
@@ -568,6 +717,22 @@
 <script>
 (function(){
   "use strict";
+
+  /* ---------------------------------------------------------
+     THEME SWITCHER — persists per-browser via localStorage
+  --------------------------------------------------------- */
+  const THEME_KEY = "tunein-theme";
+  function applyTheme(theme){
+    document.documentElement.setAttribute("data-theme", theme);
+    document.querySelectorAll(".theme-swatch").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.swatch === theme);
+    });
+    localStorage.setItem(THEME_KEY, theme);
+  }
+  document.querySelectorAll(".theme-swatch").forEach(btn => {
+    btn.addEventListener("click", () => applyTheme(btn.dataset.swatch));
+  });
+  applyTheme(localStorage.getItem(THEME_KEY) || "dark");
 
   /* ---------------------------------------------------------
      STORAGE LAYER — IndexedDB holds rooms + messages (incl.
@@ -677,10 +842,10 @@
   const HEARTBEAT_MS = 4000;         // how often an active tab refreshes its presence
   const SWEEP_MS = 6000;             // how often we check for empty rooms to free
 
-  function upsertPresence(roomId, clientId){
+  function upsertPresence(roomId, clientId, username){
     return new Promise((resolve, reject) => {
       const tx = db.transaction("presence", "readwrite");
-      tx.objectStore("presence").put({ key: roomId + "::" + clientId, roomId, clientId, lastSeen: Date.now() });
+      tx.objectStore("presence").put({ key: roomId + "::" + clientId, roomId, clientId, username, lastSeen: Date.now() });
       tx.oncomplete = () => resolve();
       tx.onerror = (e) => reject(e);
     });
@@ -723,7 +888,13 @@
     const now = Date.now();
     const stale = entries.filter(e => now - e.lastSeen > PRESENCE_STALE_MS);
     const alive = entries.filter(e => now - e.lastSeen <= PRESENCE_STALE_MS);
-    if(stale.length) await deletePresenceEntries(stale);
+    if(stale.length){
+      await deletePresenceEntries(stale);
+      // These tabs vanished without clicking Leave (closed/crashed) — still announce it.
+      stale.forEach(entry => {
+        if(entry.username) announcePresence(roomId, entry.username, "left");
+      });
+    }
     if(alive.length === 0){
       await deleteRoom(roomId);
       await deleteMessagesForRoom(roomId);
@@ -743,6 +914,13 @@
   const bus = ("BroadcastChannel" in window) ? new BroadcastChannel("tunein-bus") : null;
   const clientId = (crypto.randomUUID ? crypto.randomUUID() : ("c" + Date.now() + Math.random().toString(16).slice(2)));
   let heartbeatTimer = null;
+
+  // Tells other tabs in the same room that someone joined/left, so they can pop a toast.
+  function announcePresence(roomId, username, action){
+    if(!bus) return;
+    const text = action === "joined" ? `${username} has joined the room!` : `${username} has left the room!`;
+    bus.postMessage({ type: "presence-event", roomId, text });
+  }
 
   /* ---------------------------------------------------------
      LANDING SCREEN LOGIC
@@ -913,18 +1091,22 @@
     await renderAllMessages();
     textInput.focus();
 
-    await upsertPresence(roomId, clientId);
+    await upsertPresence(roomId, clientId, name);
+    showSystemToast(`${name} has joined the room!`); // shown locally — BroadcastChannel doesn't echo to its own sender
+    announcePresence(roomId, name, "joined");
     if(heartbeatTimer) clearInterval(heartbeatTimer);
     heartbeatTimer = setInterval(() => {
-      if(currentRoom) upsertPresence(currentRoom, clientId);
+      if(currentRoom) upsertPresence(currentRoom, clientId, currentUser);
     }, HEARTBEAT_MS);
   }
 
   async function leaveCurrentRoom(){
     if(!currentRoom) return;
     const leavingRoom = currentRoom;
+    const leavingUser = currentUser;
     if(heartbeatTimer){ clearInterval(heartbeatTimer); heartbeatTimer = null; }
     await deletePresence(leavingRoom, clientId);
+    announcePresence(leavingRoom, leavingUser, "left");
     await checkAndFreeIfEmpty(leavingRoom); // frees the ID immediately if that was the last person
     currentRoom = null;
     currentUser = null;
@@ -1100,9 +1282,19 @@
   /* ---------------------------------------------------------
      LIVE SYNC ACROSS TABS
   --------------------------------------------------------- */
+  function showSystemToast(text){
+    const stack = document.getElementById("toastStack");
+    if(!stack) return;
+    const el = document.createElement("div");
+    el.className = "toast-item";
+    el.textContent = text;
+    stack.appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+  }
+
   if(bus){
     bus.onmessage = async (e) => {
-      const { type, roomId } = e.data || {};
+      const { type, roomId, text } = e.data || {};
       if(type === "room-created"){
         refreshRoomList();
       }
@@ -1111,6 +1303,9 @@
       }
       if(type === "room-freed"){
         refreshRoomList();
+      }
+      if(type === "presence-event" && roomId === currentRoom){
+        showSystemToast(text);
       }
     };
   }
