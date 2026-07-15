@@ -1,458 +1,1005 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure P2P Chat (Max 10)</title>
-    <!-- PeerJS library for WebRTC -->
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <style>
-        :root {
-            --bg-color: #f0f2f5;
-            --chat-bg: #ffffff;
-            --text-color: #050505;
-            --secondary-text: #65676b;
-            --input-bg: #ffffff;
-            --bubble-self: #0084ff;
-            --bubble-self-text: #ffffff;
-            --bubble-other: #e4e6eb;
-            --bubble-other-text: #050505;
-            --border-color: #ced0d4;
-            --system-text: #65676b;
-            --file-bg: #e7f3ff;
-            --file-border: #0084ff;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tune In — Chat Rooms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#1B2430;
+    --bg-panel:#242F3D;
+    --bg-panel-2:#2C3846;
+    --bg-chat:#1F2937;
+    --accent-brass:#D9A441;
+    --accent-brass-dim:#8C6E33;
+    --accent-teal:#5FB8B0;
+    --text-primary:#EDEFF2;
+    --text-muted:#8B98A8;
+    --error:#E1614B;
+    --border:#374253;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, #26313f 0%, var(--bg-deep) 60%);
+    color:var(--text-primary);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .display{font-family:'Oswald',sans-serif;}
 
-        [data-theme="dark"] {
-            --bg-color: #121212;
-            --chat-bg: #1e1e1e;
-            --text-color: #e4e6eb;
-            --secondary-text: #b0b3b8;
-            --input-bg: #2d2d2d;
-            --bubble-self: #0084ff;
-            --bubble-self-text: #ffffff;
-            --bubble-other: #3a3b3c;
-            --bubble-other-text: #e4e6eb;
-            --border-color: #3a3b3c;
-            --system-text: #b0b3b8;
-            --file-bg: #1e2a3a;
-            --file-border: #0084ff;
-        }
+  /* ================= LANDING PANEL ================= */
+  .console{
+    width:100%;
+    max-width:480px;
+    background:linear-gradient(180deg,var(--bg-panel),var(--bg-panel-2));
+    border:1px solid var(--border);
+    border-radius:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.03);
+    padding:28px 26px 24px;
+  }
+  .console-header{
+    text-align:center;
+    margin-bottom:18px;
+  }
+  .console-header .eyebrow{
+    letter-spacing:0.3em;
+    font-size:11px;
+    color:var(--accent-teal);
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+  }
+  .console-header .eyebrow::before,
+  .console-header .eyebrow::after{
+    content:"";
+    height:1px;
+    width:28px;
+    background:var(--border);
+  }
+  .console-header h1{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:32px;
+    letter-spacing:0.06em;
+    margin:8px 0 0;
+    color:var(--text-primary);
+  }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: var(--bg-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--text-color); height: 100vh; display: flex; flex-direction: column; overflow: hidden; transition: background-color 0.3s, color 0.3s; }
-        
-        .theme-toggle { position: fixed; top: 15px; right: 15px; background: var(--chat-bg); border: 1px solid var(--border-color); border-radius: 20px; width: 40px; height: 40px; font-size: 20px; cursor: pointer; z-index: 100; color: var(--text-color); display: flex; align-items: center; justify-content: center; }
-        
-        /* Join Screen */
-        #join-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .join-box { background: var(--chat-bg); padding: 40px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        .join-box h1 { font-size: 24px; text-align: center; margin-bottom: 8px; }
-        .join-box p { color: var(--secondary-text); text-align: center; margin-bottom: 24px; font-size: 14px; }
-        .input-group { margin-bottom: 16px; }
-        .input-group label { display: block; font-size: 14px; margin-bottom: 6px; color: var(--secondary-text); }
-        .input-group input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); font-size: 16px; outline: none; }
-        .input-group input:focus { border-color: var(--bubble-self); }
-        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--bubble-self); color: var(--bubble-self-text); font-weight: bold; font-size: 16px; cursor: pointer; }
-        .btn:hover { opacity: 0.9; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .status-text { text-align: center; margin-top: 15px; font-size: 14px; color: var(--secondary-text); display: none; }
+  /* Dial */
+  .dial-wrap{
+    margin:22px 0 20px;
+    background:#171F29;
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px 18px 14px;
+  }
+  .dial-readout{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:10px;
+  }
+  .dial-readout .label{
+    font-size:10px;
+    letter-spacing:0.2em;
+    color:var(--text-muted);
+    text-transform:uppercase;
+  }
+  .dial-readout .freq{
+    font-family:'JetBrains Mono',monospace;
+    font-size:22px;
+    font-weight:700;
+    color:var(--accent-brass);
+    letter-spacing:0.05em;
+    transition:color .2s ease;
+  }
+  .dial-readout .freq.locked{ color:var(--accent-teal); }
+  .dial-track{
+    position:relative;
+    height:34px;
+    display:flex;
+    align-items:flex-end;
+    gap:3px;
+    overflow:hidden;
+    border-bottom:1px solid var(--border);
+  }
+  .tick{
+    flex:1;
+    background:#3A4756;
+    width:2px;
+    height:10px;
+    border-radius:1px;
+  }
+  .tick.major{ height:18px; background:#4C5B6E; }
+  .needle{
+    position:absolute;
+    bottom:0;
+    top:0;
+    width:2px;
+    background:var(--accent-brass);
+    box-shadow:0 0 8px 1px rgba(217,164,65,0.7);
+    left:2%;
+    transition:left .35s cubic-bezier(.2,.8,.2,1), background .2s ease, box-shadow .2s ease;
+  }
+  .needle.locked{ background:var(--accent-teal); box-shadow:0 0 10px 2px rgba(95,184,176,0.7); }
 
-        /* Chat Screen */
-        #chat-screen { display: none; flex-direction: column; height: 100vh; }
-        .chat-header { background: var(--chat-bg); padding: 12px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); z-index: 10; }
-        .room-info { font-weight: bold; font-size: 16px; }
-        .room-info span { color: var(--secondary-text); font-weight: normal; font-size: 14px; margin-left: 8px; }
-        .leave-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-color); padding: 6px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; }
-        .leave-btn:hover { background: var(--bg-color); }
-        
-        #chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
-        
-        .message-wrapper { display: flex; flex-direction: column; max-width: 70%; }
-        .message-wrapper.self { align-self: flex-end; align-items: flex-end; }
-        .message-wrapper.other { align-self: flex-start; align-items: flex-start; }
-        
-        .sender-name { font-size: 12px; color: var(--secondary-text); margin-bottom: 2px; margin-left: 12px; margin-right: 12px; }
-        
-        .message-bubble { padding: 10px 14px; border-radius: 18px; word-wrap: break-word; word-break: break-word; font-size: 15px; line-height: 1.4; }
-        .self .message-bubble { background: var(--bubble-self); color: var(--bubble-self-text); border-bottom-right-radius: 4px; }
-        .other .message-bubble { background: var(--bubble-other); color: var(--bubble-other-text); border-bottom-left-radius: 4px; }
-        
-        .system-message { align-self: center; background: transparent; color: var(--system-text); font-size: 13px; padding: 4px 12px; margin: 4px 0; text-align: center; }
+  /* Form fields */
+  .field{ margin-bottom:14px; }
+  .field label{
+    display:block;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    margin-bottom:6px;
+  }
+  .field input, .field select{
+    width:100%;
+    background:#182029;
+    border:1px solid var(--border);
+    color:var(--text-primary);
+    padding:11px 12px;
+    border-radius:8px;
+    font-size:14px;
+    font-family:'Inter',sans-serif;
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .field input::placeholder{ color:#5A6779; }
+  .field input:focus, .field select:focus{
+    border-color:var(--accent-teal);
+    box-shadow:0 0 0 3px rgba(95,184,176,0.15);
+  }
 
-        .file-container { background: var(--file-bg); border: 1px solid var(--file-border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-        .file-container img { max-width: 100%; border-radius: 8px; cursor: pointer; }
-        .file-container video { max-width: 100%; border-radius: 8px; }
-        .file-download { display: flex; align-items: center; gap: 8px; color: var(--file-border); text-decoration: none; font-weight: 500; font-size: 14px; }
-        .file-download:hover { text-decoration: underline; }
-        
-        .chat-footer { background: var(--chat-bg); padding: 12px 20px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; align-items: center; }
-        .file-btn { background: transparent; border: none; color: var(--secondary-text); font-size: 24px; cursor: pointer; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .file-btn:hover { background: var(--bg-color); }
-        #file-input { display: none; }
-        #message-input { flex: 1; padding: 12px 16px; border-radius: 20px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); font-size: 15px; outline: none; }
-        #message-input:focus { border-color: var(--bubble-self); }
-        .send-btn { background: var(--bubble-self); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
-        .send-btn:hover { opacity: 0.9; }
-        .send-btn:disabled { opacity: 0.5; }
-    </style>
+  .mode-toggle{
+    display:flex;
+    gap:8px;
+    margin:18px 0 16px;
+    background:#171F29;
+    padding:5px;
+    border-radius:10px;
+    border:1px solid var(--border);
+  }
+  .mode-btn{
+    flex:1;
+    padding:10px 0;
+    text-align:center;
+    border-radius:7px;
+    font-family:'Oswald',sans-serif;
+    letter-spacing:0.08em;
+    font-size:13px;
+    text-transform:uppercase;
+    cursor:pointer;
+    color:var(--text-muted);
+    background:transparent;
+    border:none;
+    transition:background .15s ease, color .15s ease;
+  }
+  .mode-btn.active{
+    background:var(--accent-brass);
+    color:#20160A;
+    font-weight:600;
+  }
+
+  .panel-section{ display:none; }
+  .panel-section.visible{ display:block; }
+
+  .go-btn{
+    width:100%;
+    padding:13px 0;
+    border-radius:9px;
+    border:none;
+    background:var(--accent-teal);
+    color:#0E2320;
+    font-family:'Oswald',sans-serif;
+    font-size:15px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:6px;
+    transition:transform .12s ease, filter .12s ease;
+  }
+  .go-btn:hover{ filter:brightness(1.08); }
+  .go-btn:active{ transform:scale(0.98); }
+
+  .error-msg{
+    display:none;
+    background:rgba(225,97,75,0.12);
+    border:1px solid rgba(225,97,75,0.4);
+    color:#F3A493;
+    font-size:12.5px;
+    padding:9px 11px;
+    border-radius:7px;
+    margin-top:10px;
+  }
+  .error-msg.visible{ display:block; }
+
+  .room-hint{
+    font-size:11.5px;
+    color:var(--text-muted);
+    margin-top:8px;
+    line-height:1.5;
+  }
+
+  .existing-rooms{
+    margin-top:4px;
+  }
+
+  /* ================= CHAT SCREEN ================= */
+  .chat-app{
+    display:none;
+    width:100%;
+    max-width:640px;
+    height:88vh;
+    max-height:780px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:16px;
+    overflow:hidden;
+    flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,0.45);
+  }
+  .chat-app.visible{ display:flex; }
+
+  .chat-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 18px;
+    background:linear-gradient(180deg,#26313f,#212B38);
+    border-bottom:1px solid var(--border);
+  }
+  .chat-header .ch-left{ display:flex; align-items:center; gap:12px; }
+  .ch-freq{
+    font-family:'JetBrains Mono',monospace;
+    background:#171F29;
+    border:1px solid var(--border);
+    color:var(--accent-teal);
+    padding:6px 10px;
+    border-radius:7px;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.04em;
+  }
+  .ch-user{
+    font-family:'Oswald',sans-serif;
+    font-size:15px;
+    letter-spacing:0.03em;
+  }
+  .on-air{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:10.5px;
+    letter-spacing:0.15em;
+    color:var(--accent-teal);
+    text-transform:uppercase;
+  }
+  .on-air .dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--accent-teal);
+    box-shadow:0 0 6px 2px rgba(95,184,176,0.7);
+    animation:pulse 1.8s infinite ease-in-out;
+  }
+  @keyframes pulse{
+    0%,100%{ opacity:1; }
+    50%{ opacity:0.35; }
+  }
+  .leave-btn{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-muted);
+    font-family:'Inter',sans-serif;
+    font-size:12px;
+    padding:7px 12px;
+    border-radius:7px;
+    cursor:pointer;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .leave-btn:hover{ border-color:var(--error); color:var(--error); }
+
+  .messages{
+    flex:1;
+    overflow-y:auto;
+    padding:18px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 26px),
+      var(--bg-chat);
+  }
+  .empty-state{
+    margin:auto;
+    text-align:center;
+    color:var(--text-muted);
+    font-size:13px;
+    max-width:280px;
+    line-height:1.6;
+  }
+  .empty-state .display{ color:var(--text-primary); font-size:16px; display:block; margin-bottom:6px; }
+
+  .msg-row{
+    display:flex;
+    flex-direction:column;
+    max-width:76%;
+    animation:fadein .25s ease;
+  }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  .msg-row.mine{ align-self:flex-end; align-items:flex-end; }
+  .msg-row.theirs{ align-self:flex-start; align-items:flex-start; }
+
+  .msg-meta{
+    font-size:10.5px;
+    color:var(--text-muted);
+    margin-bottom:3px;
+    padding:0 3px;
+    letter-spacing:0.02em;
+  }
+  .bubble{
+    padding:9px 12px;
+    border-radius:12px;
+    font-size:14px;
+    line-height:1.45;
+    word-wrap:break-word;
+    overflow-wrap:anywhere;
+  }
+  .msg-row.mine .bubble{
+    background:var(--accent-brass);
+    color:#20160A;
+    border-bottom-right-radius:3px;
+  }
+  .msg-row.theirs .bubble{
+    background:var(--bg-panel-2);
+    border:1px solid var(--border);
+    color:var(--text-primary);
+    border-bottom-left-radius:3px;
+  }
+
+  .bubble img{
+    max-width:100%;
+    max-height:260px;
+    border-radius:8px;
+    display:block;
+    margin-top:2px;
+  }
+  .bubble video{
+    max-width:100%;
+    max-height:260px;
+    border-radius:8px;
+    display:block;
+    margin-top:2px;
+  }
+  .file-card{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:rgba(0,0,0,0.15);
+    border-radius:8px;
+    padding:9px 10px;
+    margin-top:2px;
+    text-decoration:none;
+    color:inherit;
+  }
+  .msg-row.theirs .file-card{ background:rgba(255,255,255,0.04); }
+  .file-icon{
+    width:34px; height:34px;
+    border-radius:7px;
+    background:var(--accent-teal);
+    color:#0E2320;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:14px;
+    font-weight:700;
+    flex-shrink:0;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .file-info{ min-width:0; }
+  .file-name{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+  .file-size{ font-size:11px; opacity:0.7; }
+
+  .composer{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:12px 14px;
+    border-top:1px solid var(--border);
+    background:#20293450;
+  }
+  .attach-btn, .send-btn{
+    flex-shrink:0;
+    width:40px; height:40px;
+    border-radius:9px;
+    border:1px solid var(--border);
+    background:#182029;
+    color:var(--text-muted);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    font-size:17px;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .attach-btn:hover{ color:var(--accent-teal); border-color:var(--accent-teal); }
+  .send-btn{ background:var(--accent-teal); color:#0E2320; border:none; font-size:15px; }
+  .send-btn:hover{ filter:brightness(1.08); }
+  .text-input{
+    flex:1;
+    background:#182029;
+    border:1px solid var(--border);
+    color:var(--text-primary);
+    padding:10px 13px;
+    border-radius:9px;
+    font-size:14px;
+    outline:none;
+    font-family:'Inter',sans-serif;
+  }
+  .text-input:focus{ border-color:var(--accent-teal); }
+
+  .upload-preview-bar{
+    display:none;
+    align-items:center;
+    gap:8px;
+    padding:8px 14px;
+    background:#182029;
+    border-top:1px solid var(--border);
+    font-size:12px;
+    color:var(--text-muted);
+  }
+  .upload-preview-bar.visible{ display:flex; }
+  .upload-preview-bar .cancel-upload{
+    margin-left:auto;
+    cursor:pointer;
+    color:var(--error);
+    font-size:12px;
+  }
+
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-thumb{ background:#3A4756; border-radius:4px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  @media (max-width:520px){
+    .chat-app{ height:92vh; border-radius:12px; }
+    .console{ padding:22px 18px 20px; }
+  }
+</style>
 </head>
-<body data-theme="light">
+<body>
 
-    <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+<!-- ================= LANDING ================= -->
+<div class="console" id="landing">
+  <div class="console-header">
+    <div class="eyebrow">on air</div>
+    <h1>TUNE IN</h1>
+  </div>
 
-    <!-- Join Screen -->
-    <div id="join-screen">
-        <div class="join-box">
-            <h1>🔒 P2P Encrypted Chat</h1>
-            <p>WebRTC Peer-to-Peer Connection (Max 10 Users)</p>
-            
-            <div class="input-group">
-                <label for="username">Your Name</label>
-                <input type="text" id="username" placeholder="Enter your name" maxlength="20">
-            </div>
-            
-            <div class="input-group">
-                <label for="room-id">Room ID</label>
-                <input type="text" id="room-id" placeholder="e.g., secret-room-123">
-            </div>
-            
-            <button class="btn" onclick="joinRoom()">Create / Join Room</button>
-            <div class="status-text" id="status-text">Connecting to room...</div>
-        </div>
+  <div class="dial-wrap">
+    <div class="dial-readout">
+      <span class="label">Channel</span>
+      <span class="freq mono" id="freqReadout">-- . --</span>
     </div>
-
-    <!-- Chat Screen -->
-    <div id="chat-screen">
-        <div class="chat-header">
-            <div class="room-info">
-                Room: <span id="current-room"></span>
-            </div>
-            <button class="leave-btn" onclick="leaveRoom()">Leave</button>
-        </div>
-
-        <div id="chat-messages"></div>
-
-        <div class="chat-footer">
-            <input type="file" id="file-input" onchange="handleFile(this)">
-            <button class="file-btn" onclick="document.getElementById('file-input').click()">📎</button>
-            <input type="text" id="message-input" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
-            <button class="send-btn" onclick="sendMessage()">➤</button>
-        </div>
+    <div class="dial-track" id="dialTrack">
+      <div class="needle" id="needle"></div>
     </div>
+  </div>
 
-    <script>
-        let peer = null;
-        let connections = {}; // Store peer connections { peerId: conn }
-        let isHost = false;
-        let roomId = "";
-        let username = "";
-        const MAX_USERS = 10;
+  <div class="field">
+    <label for="username">Your name</label>
+    <input type="text" id="username" placeholder="e.g. Riley" maxlength="24" autocomplete="off">
+  </div>
 
-        // Theme Toggle
-        function toggleTheme() {
-            const body = document.querySelector('body');
-            const btn = document.querySelector('.theme-toggle');
-            if (body.getAttribute('data-theme') === 'dark') {
-                body.setAttribute('data-theme', 'light');
-                btn.textContent = '🌙';
-            } else {
-                body.setAttribute('data-theme', 'dark');
-                btn.textContent = '☀️';
-            }
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="tabJoin">Join</button>
+    <button class="mode-btn" id="tabCreate">Create</button>
+  </div>
+
+  <!-- JOIN PANEL -->
+  <div class="panel-section visible" id="joinPanel">
+    <div class="field">
+      <label for="joinRoomId">Room ID</label>
+      <input type="text" id="joinRoomId" placeholder="Type or pick a room ID" list="roomList" maxlength="20" autocomplete="off">
+      <datalist id="roomList"></datalist>
+    </div>
+    <div class="room-hint" id="joinHint">No rooms yet on this browser — create one first.</div>
+    <button class="go-btn" id="joinBtn">Join Room</button>
+    <div class="error-msg" id="joinError"></div>
+  </div>
+
+  <!-- CREATE PANEL -->
+  <div class="panel-section" id="createPanel">
+    <div class="field">
+      <label for="createRoomId">New room ID</label>
+      <input type="text" id="createRoomId" placeholder="e.g. movie-night" maxlength="20" autocomplete="off">
+    </div>
+    <button class="go-btn" id="createBtn">Create Room</button>
+    <div class="error-msg" id="createError"></div>
+    <div class="room-hint">Room IDs must be unique. Letters, numbers, dashes work best.</div>
+  </div>
+</div>
+
+<!-- ================= CHAT APP ================= -->
+<div class="chat-app" id="chatApp">
+  <div class="chat-header">
+    <div class="ch-left">
+      <div class="ch-freq" id="headerRoomId">CH 00</div>
+      <div class="ch-user display" id="headerUsername"></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div class="on-air"><span class="dot"></span>Live</div>
+      <button class="leave-btn" id="leaveBtn">Leave</button>
+    </div>
+  </div>
+
+  <div class="messages" id="messagesEl">
+    <div class="empty-state">
+      <span class="display">Nothing here yet</span>
+      No messages, photos, videos or files in this room so far. Send the first one below.
+    </div>
+  </div>
+
+  <div class="upload-preview-bar" id="uploadPreviewBar">
+    <span id="uploadPreviewText">Attaching file…</span>
+    <span class="cancel-upload" id="cancelUpload">Cancel</span>
+  </div>
+
+  <div class="composer">
+    <button class="attach-btn" id="attachBtn" title="Attach photo, video or document">📎</button>
+    <input type="file" id="fileInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.rar,.ppt,.pptx,.xls,.xlsx,.csv">
+    <input type="text" class="text-input" id="textInput" placeholder="Type a message…" autocomplete="off">
+    <button class="send-btn" id="sendBtn" title="Send">➤</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------------------------------------------------
+     STORAGE LAYER — IndexedDB holds rooms + messages (incl.
+     file data as base64). BroadcastChannel pushes live updates
+     to any other tab/window open on this same browser+origin.
+     There is no server: two different computers will NOT see
+     each other's rooms. Open a second tab to test as a second
+     person.
+  --------------------------------------------------------- */
+  const DB_NAME = "tuneInChatDB";
+  const DB_VERSION = 1;
+  let db;
+
+  function openDB(){
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const _db = e.target.result;
+        if(!_db.objectStoreNames.contains("rooms")){
+          _db.createObjectStore("rooms", { keyPath: "id" });
         }
-
-        // Join Room Logic
-        function joinRoom() {
-            username = document.getElementById('username').value.trim();
-            roomId = document.getElementById('room-id').value.trim();
-            
-            if (!username || !roomId) {
-                alert("Please enter both username and room ID.");
-                return;
-            }
-
-            document.getElementById('status-text').style.display = 'block';
-            document.getElementById('status-text').textContent = 'Connecting to room...';
-            document.querySelector('.btn').disabled = true;
-
-            // Generate a unique peer ID based on room and random string
-            const peerId = `${roomId}-${Math.random().toString(36).substr(2, 9)}`;
-            
-            try {
-                peer = new Peer(peerId, { debug: 0 });
-
-                peer.on('open', (id) => {
-                    console.log('My peer ID: ' + id);
-                    isHost = true; // Assume host first
-                    setupChat();
-                });
-
-                // If ID is taken, we are a client
-                peer.on('error', (err) => {
-                    if (err.type === 'unavailable-id') {
-                        console.log('Room exists, joining as client...');
-                        isHost = false;
-                        joinAsClient();
-                    } else if (err.type === 'peer-unavailable') {
-                        // Ignore, handled elsewhere
-                    } else {
-                        console.error('Peer error:', err);
-                        document.getElementById('status-text').textContent = 'Error: ' + err.type;
-                    }
-                });
-
-                // Listen for incoming connections
-                peer.on('connection', (conn) => {
-                    handleIncomingConnection(conn);
-                });
-
-            } catch (e) {
-                console.error("Failed to initialize PeerJS", e);
-                document.getElementById('status-text').textContent = 'Failed to connect.';
-            }
+        if(!_db.objectStoreNames.contains("messages")){
+          const store = _db.createObjectStore("messages", { keyPath: "msgId", autoIncrement: true });
+          store.createIndex("roomId", "roomId", { unique: false });
         }
+      };
+      req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+      req.onerror = (e) => reject(e);
+    });
+  }
 
-        function joinAsClient() {
-            // Find the host's peer ID (we don't know it exactly, so we try to connect to the base room ID)
-            // In a real app, you'd have a signaling server. Here we rely on the host having the first ID or we broadcast.
-            // Since we can't easily list peers, we use a trick: the host is the one without a random suffix? No, that's unreliable.
-            // Better approach: Try connecting to a known host ID pattern, or just let the host connect to us? No, clients must connect to host.
-            // Workaround: We try to connect to "roomId-host". If host used that, great. Otherwise, we fail.
-            // Actually, PeerJS doesn't support listing peers. The standard way is a signaling server.
-            // For this no-server script, we assume the host's ID is exactly the Room ID.
-            
-            const hostId = roomId; 
-            const conn = peer.connect(hostId, { reliable: true });
+  function roomExists(roomId){
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("rooms", "readonly");
+      const req = tx.objectStore("rooms").get(roomId);
+      req.onsuccess = () => resolve(!!req.result);
+      req.onerror = (e) => reject(e);
+    });
+  }
 
-            conn.on('open', () => {
-                console.log('Connected to host!');
-                connections[hostId] = conn;
-                setupChat();
-                
-                // Send join notification
-                sendSystemMessage(`${username} joined the room`);
-            });
+  function createRoom(roomId, creator){
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("rooms", "readwrite");
+      tx.objectStore("rooms").add({ id: roomId, creator, createdAt: Date.now() });
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e);
+    });
+  }
 
-            conn.on('data', (data) => {
-                handleData(data, hostId);
-            });
+  function getAllRooms(){
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("rooms", "readonly");
+      const req = tx.objectStore("rooms").getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = (e) => reject(e);
+    });
+  }
 
-            conn.on('close', () => {
-                handleUserLeft(hostId);
-            });
-        }
+  function addMessage(msg){
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("messages", "readwrite");
+      const req = tx.objectStore("messages").add(msg);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = (e) => reject(e);
+    });
+  }
 
-        function handleIncomingConnection(conn) {
-            if (Object.keys(connections).length >= MAX_USERS - 1) {
-                console.log('Room full');
-                conn.on('open', () => {
-                    conn.send({ type: 'system', message: 'Room is full' });
-                    setTimeout(() => conn.close(), 1000);
-                });
-                return;
-            }
+  function getMessagesForRoom(roomId){
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("messages", "readonly");
+      const idx = tx.objectStore("messages").index("roomId");
+      const req = idx.getAll(IDBKeyRange.only(roomId));
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = (e) => reject(e);
+    });
+  }
 
-            console.log('Incoming connection from', conn.peer);
-            conn.on('open', () => {
-                connections[conn.peer] = conn;
-                // Request the new user's name
-                conn.send({ type: 'system-request', action: 'join-info' });
-            });
+  const bus = ("BroadcastChannel" in window) ? new BroadcastChannel("tunein-bus") : null;
 
-            conn.on('data', (data) => {
-                handleData(data, conn.peer);
-            });
+  /* ---------------------------------------------------------
+     LANDING SCREEN LOGIC
+  --------------------------------------------------------- */
+  const usernameEl = document.getElementById("username");
+  const tabJoin = document.getElementById("tabJoin");
+  const tabCreate = document.getElementById("tabCreate");
+  const joinPanel = document.getElementById("joinPanel");
+  const createPanel = document.getElementById("createPanel");
+  const joinRoomId = document.getElementById("joinRoomId");
+  const createRoomIdEl = document.getElementById("createRoomId");
+  const joinBtn = document.getElementById("joinBtn");
+  const createBtn = document.getElementById("createBtn");
+  const joinError = document.getElementById("joinError");
+  const createError = document.getElementById("createError");
+  const joinHint = document.getElementById("joinHint");
+  const roomListEl = document.getElementById("roomList");
+  const freqReadout = document.getElementById("freqReadout");
+  const needle = document.getElementById("needle");
+  const dialTrack = document.getElementById("dialTrack");
 
-            conn.on('close', () => {
-                handleUserLeft(conn.peer);
-            });
-        }
+  // Build tick marks
+  (function buildTicks(){
+    const total = 40;
+    for(let i=0;i<total;i++){
+      const t = document.createElement("div");
+      t.className = "tick" + (i % 5 === 0 ? " major" : "");
+      dialTrack.insertBefore(t, needle);
+    }
+  })();
 
-        function setupChat() {
-            document.getElementById('join-screen').style.display = 'none';
-            document.getElementById('chat-screen').style.display = 'flex';
-            document.getElementById('current-room').textContent = roomId;
-            
-            if (isHost) {
-                addSystemMessage(`You created the room. Waiting for others...`);
-            } else {
-                addSystemMessage(`You joined the room.`);
-            }
-        }
+  function hashToPercent(str){
+    if(!str) return 2;
+    let h = 0;
+    for(let i=0;i<str.length;i++){ h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+    return 4 + (h % 92); // keep needle within visible track
+  }
 
-        function handleData(data, fromPeerId) {
-            if (data.type === 'chat') {
-                addMessage(data.username, data.message, false);
-            } else if (data.type === 'file') {
-                addFile(data.username, data.fileType, data.fileName, data.fileData, false);
-            } else if (data.type === 'system') {
-                addSystemMessage(data.message);
-            } else if (data.type === 'system-request') {
-                if (data.action === 'join-info') {
-                    // Send our username to the host
-                    connections[fromPeerId].send({ type: 'system-response', username: username });
-                }
-            } else if (data.type === 'system-response') {
-                if (data.username) {
-                    addSystemMessage(`${data.username} joined the room`);
-                    // Relay this to others if we are host? (Complex, skipping for now)
-                }
-            }
-        }
+  function updateDial(str, locked){
+    const pct = hashToPercent(str);
+    needle.style.left = pct + "%";
+    needle.classList.toggle("locked", !!locked);
+    if(!str){
+      freqReadout.textContent = "-- . --";
+      freqReadout.classList.remove("locked");
+    } else {
+      const major = (pct / 10).toFixed(1);
+      freqReadout.textContent = major.padStart(4,"0");
+      freqReadout.classList.toggle("locked", !!locked);
+    }
+  }
 
-        function sendMessage() {
-            const input = document.getElementById('message-input');
-            const msg = input.value.trim();
-            if (!msg) return;
+  function activeRoomInput(){
+    return tabJoin.classList.contains("active") ? joinRoomId : createRoomIdEl;
+  }
 
-            addMessage(username, msg, true);
-            broadcast({ type: 'chat', username: username, message: msg });
-            input.value = '';
-        }
+  [joinRoomId, createRoomIdEl].forEach(inp => {
+    inp.addEventListener("input", () => {
+      updateDial(inp.value.trim(), inp.value.trim().length > 2);
+    });
+    inp.addEventListener("focus", () => updateDial(inp.value.trim(), inp.value.trim().length > 2));
+  });
 
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        }
+  function switchTab(mode){
+    const isJoin = mode === "join";
+    tabJoin.classList.toggle("active", isJoin);
+    tabCreate.classList.toggle("active", !isJoin);
+    joinPanel.classList.toggle("visible", isJoin);
+    createPanel.classList.toggle("visible", !isJoin);
+    joinError.classList.remove("visible");
+    createError.classList.remove("visible");
+    updateDial(activeRoomInput().value.trim(), false);
+  }
+  tabJoin.addEventListener("click", () => switchTab("join"));
+  tabCreate.addEventListener("click", () => switchTab("create"));
 
-        function handleFile(input) {
-            const file = input.files[0];
-            if (!file) return;
+  async function refreshRoomList(){
+    const rooms = await getAllRooms();
+    roomListEl.innerHTML = "";
+    rooms.forEach(r => {
+      const opt = document.createElement("option");
+      opt.value = r.id;
+      roomListEl.appendChild(opt);
+    });
+    joinHint.textContent = rooms.length
+      ? `${rooms.length} room${rooms.length === 1 ? "" : "s"} available on this browser.`
+      : "No rooms yet on this browser — create one first.";
+  }
 
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                alert("File size must be less than 5MB.");
-                input.value = '';
-                return;
-            }
+  function showError(el, text){
+    el.textContent = text;
+    el.classList.add("visible");
+  }
+  function clearError(el){ el.classList.remove("visible"); }
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const fileData = e.target.result;
-                const fileType = file.type;
-                const fileName = file.name;
+  function sanitizeRoomId(v){
+    return v.trim().toLowerCase().replace(/\s+/g, "-").slice(0, 20);
+  }
 
-                addFile(username, fileType, fileName, fileData, true);
-                broadcast({ type: 'file', username: username, fileType: fileType, fileName: fileName, fileData: fileData });
-            };
-            reader.readAsDataURL(file);
-            input.value = '';
-        }
+  joinBtn.addEventListener("click", async () => {
+    clearError(joinError);
+    const name = usernameEl.value.trim();
+    const roomId = sanitizeRoomId(joinRoomId.value);
+    if(!name){ showError(joinError, "Enter a username first."); return; }
+    if(!roomId){ showError(joinError, "Enter a room ID to join."); return; }
+    const exists = await roomExists(roomId);
+    if(!exists){
+      showError(joinError, `Room "${roomId}" doesn't exist. Check the ID or create it instead.`);
+      return;
+    }
+    enterChat(name, roomId);
+  });
 
-        function broadcast(data) {
-            for (let id in connections) {
-                if (connections[id].open) {
-                    connections[id].send(data);
-                }
-            }
-        }
+  createBtn.addEventListener("click", async () => {
+    clearError(createError);
+    const name = usernameEl.value.trim();
+    const roomId = sanitizeRoomId(createRoomIdEl.value);
+    if(!name){ showError(createError, "Enter a username first."); return; }
+    if(!roomId){ showError(createError, "Enter a room ID to create."); return; }
+    const exists = await roomExists(roomId);
+    if(exists){
+      showError(createError, `Room "${roomId}" is already taken. Try a different ID.`);
+      return;
+    }
+    await createRoom(roomId, name);
+    if(bus) bus.postMessage({ type: "room-created", roomId });
+    await refreshRoomList();
+    enterChat(name, roomId);
+  });
 
-        function sendSystemMessage(msg) {
-            broadcast({ type: 'system', message: msg });
-            addSystemMessage(msg);
-        }
+  [joinRoomId, createRoomIdEl].forEach(inp => {
+    inp.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){
+        (tabJoin.classList.contains("active") ? joinBtn : createBtn).click();
+      }
+    });
+  });
 
-        function addMessage(sender, text, isSelf) {
-            const chat = document.getElementById('chat-messages');
-            const wrapper = document.createElement('div');
-            wrapper.className = `message-wrapper ${isSelf ? 'self' : 'other'}`;
-            
-            if (!isSelf) {
-                const nameDiv = document.createElement('div');
-                nameDiv.className = 'sender-name';
-                nameDiv.textContent = sender;
-                wrapper.appendChild(nameDiv);
-            }
-            
-            const bubble = document.createElement('div');
-            bubble.className = 'message-bubble';
-            bubble.textContent = text;
-            wrapper.appendChild(bubble);
-            
-            chat.appendChild(wrapper);
-            chat.scrollTop = chat.scrollHeight;
-        }
+  /* ---------------------------------------------------------
+     CHAT SCREEN LOGIC
+  --------------------------------------------------------- */
+  const landing = document.getElementById("landing");
+  const chatApp = document.getElementById("chatApp");
+  const headerRoomId = document.getElementById("headerRoomId");
+  const headerUsername = document.getElementById("headerUsername");
+  const messagesEl = document.getElementById("messagesEl");
+  const textInput = document.getElementById("textInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const attachBtn = document.getElementById("attachBtn");
+  const fileInput = document.getElementById("fileInput");
+  const leaveBtn = document.getElementById("leaveBtn");
+  const uploadPreviewBar = document.getElementById("uploadPreviewBar");
+  const uploadPreviewText = document.getElementById("uploadPreviewText");
+  const cancelUpload = document.getElementById("cancelUpload");
 
-        function addFile(sender, fileType, fileName, fileData, isSelf) {
-            const chat = document.getElementById('chat-messages');
-            const wrapper = document.createElement('div');
-            wrapper.className = `message-wrapper ${isSelf ? 'self' : 'other'}`;
-            
-            if (!isSelf) {
-                const nameDiv = document.createElement('div');
-                nameDiv.className = 'sender-name';
-                nameDiv.textContent = sender;
-                wrapper.appendChild(nameDiv);
-            }
-            
-            const bubble = document.createElement('div');
-            bubble.className = 'message-bubble file-container';
-            
-            if (fileType.startsWith('image/')) {
-                const img = document.createElement('img');
-                img.src = fileData;
-                img.onclick = () => window.open(fileData, '_blank');
-                bubble.appendChild(img);
-            } else if (fileType.startsWith('video/')) {
-                const video = document.createElement('video');
-                video.src = fileData;
-                video.controls = true;
-                bubble.appendChild(video);
-            } else {
-                const link = document.createElement('a');
-                link.href = fileData;
-                link.download = fileName;
-                link.className = 'file-download';
-                link.textContent = `📄 ${fileName}`;
-                bubble.appendChild(link);
-            }
-            
-            wrapper.appendChild(bubble);
-            chat.appendChild(wrapper);
-            chat.scrollTop = chat.scrollHeight;
-        }
+  let currentRoom = null;
+  let currentUser = null;
+  let pendingFile = null; // { name, type, size, dataUrl }
+  const MAX_FILE_BYTES = 15 * 1024 * 1024; // 15MB soft cap for browser-storage demo
 
-        function addSystemMessage(msg) {
-            const chat = document.getElementById('chat-messages');
-            const div = document.createElement('div');
-            div.className = 'system-message';
-            div.textContent = msg;
-            chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
-        }
+  async function enterChat(name, roomId){
+    currentUser = name;
+    currentRoom = roomId;
+    landing.style.display = "none";
+    chatApp.classList.add("visible");
+    headerRoomId.textContent = "CH " + roomId.toUpperCase().slice(0, 10);
+    headerUsername.textContent = name;
+    await renderAllMessages();
+    textInput.focus();
+  }
 
-        function handleUserLeft(peerId) {
-            if (connections[peerId]) {
-                // We don't always know the username of the person who left in this simple model
-                // unless we stored it. Let's just say "A user left".
-                addSystemMessage(`A user left the room`);
-                delete connections[peerId];
-            }
-        }
+  leaveBtn.addEventListener("click", () => {
+    currentRoom = null;
+    currentUser = null;
+    chatApp.classList.remove("visible");
+    landing.style.display = "block";
+    joinRoomId.value = "";
+    createRoomIdEl.value = "";
+    updateDial("", false);
+    refreshRoomList();
+  });
 
-        function leaveRoom() {
-            if (peer) {
-                for (let id in connections) {
-                    connections[id].close();
-                }
-                peer.destroy();
-                peer = null;
-            }
-            connections = {};
-            document.getElementById('chat-messages').innerHTML = '';
-            document.getElementById('chat-screen').style.display = 'none';
-            document.getElementById('join-screen').style.display = 'flex';
-            document.querySelector('.btn').disabled = false;
-            document.getElementById('status-text').style.display = 'none';
-        }
+  function fileKindLabel(type){
+    if(type.startsWith("image/")) return "image";
+    if(type.startsWith("video/")) return "video";
+    return "file";
+  }
 
-        // Handle window close
-        window.addEventListener('beforeunload', () => {
-            if (peer) {
-                peer.destroy();
-            }
-        });
-    </script>
+  function extBadge(name){
+    const ext = (name.split(".").pop() || "?").toUpperCase().slice(0,4);
+    return ext;
+  }
+
+  function formatSize(bytes){
+    if(bytes < 1024) return bytes + " B";
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + " KB";
+    return (bytes/(1024*1024)).toFixed(1) + " MB";
+  }
+
+  function timeStr(ts){
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function buildMessageNode(msg){
+    const row = document.createElement("div");
+    row.className = "msg-row " + (msg.sender === currentUser ? "mine" : "theirs");
+
+    const meta = document.createElement("div");
+    meta.className = "msg-meta";
+    meta.textContent = (msg.sender === currentUser ? "You" : msg.sender) + " · " + timeStr(msg.timestamp);
+    row.appendChild(meta);
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+
+    if(msg.kind === "text"){
+      bubble.textContent = msg.text;
+    } else if(msg.kind === "image"){
+      const img = document.createElement("img");
+      img.src = msg.dataUrl;
+      img.alt = msg.fileName;
+      bubble.appendChild(img);
+    } else if(msg.kind === "video"){
+      const vid = document.createElement("video");
+      vid.src = msg.dataUrl;
+      vid.controls = true;
+      bubble.appendChild(vid);
+    } else if(msg.kind === "file"){
+      const a = document.createElement("a");
+      a.className = "file-card";
+      a.href = msg.dataUrl;
+      a.download = msg.fileName;
+      const icon = document.createElement("div");
+      icon.className = "file-icon";
+      icon.textContent = extBadge(msg.fileName);
+      const info = document.createElement("div");
+      info.className = "file-info";
+      const nameEl = document.createElement("div");
+      nameEl.className = "file-name";
+      nameEl.textContent = msg.fileName;
+      const sizeEl = document.createElement("div");
+      sizeEl.className = "file-size";
+      sizeEl.textContent = formatSize(msg.fileSize || 0);
+      info.appendChild(nameEl);
+      info.appendChild(sizeEl);
+      a.appendChild(icon);
+      a.appendChild(info);
+      bubble.appendChild(a);
+    }
+
+    row.appendChild(bubble);
+    return row;
+  }
+
+  async function renderAllMessages(){
+    const msgs = await getMessagesForRoom(currentRoom);
+    messagesEl.innerHTML = "";
+    if(!msgs.length){
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.innerHTML = '<span class="display">Nothing here yet</span>No messages, photos, videos or files in this room so far. Send the first one below.';
+      messagesEl.appendChild(empty);
+      return;
+    }
+    msgs.sort((a,b) => a.timestamp - b.timestamp);
+    msgs.forEach(m => messagesEl.appendChild(buildMessageNode(m)));
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function appendOne(msg){
+    if(messagesEl.querySelector(".empty-state")) messagesEl.innerHTML = "";
+    messagesEl.appendChild(buildMessageNode(msg));
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  async function sendText(){
+    const text = textInput.value.trim();
+    if(!text || !currentRoom) return;
+    const msg = { roomId: currentRoom, sender: currentUser, kind: "text", text, timestamp: Date.now() };
+    await addMessage(msg);
+    appendOne(msg);
+    textInput.value = "";
+    if(bus) bus.postMessage({ type: "new-message", roomId: currentRoom });
+  }
+
+  sendBtn.addEventListener("click", sendText);
+  textInput.addEventListener("keydown", (e) => { if(e.key === "Enter") sendText(); });
+
+  attachBtn.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    fileInput.value = "";
+    if(!file) return;
+    if(file.size > MAX_FILE_BYTES){
+      alert(`"${file.name}" is ${formatSize(file.size)} — over the ${formatSize(MAX_FILE_BYTES)} limit this demo can store in the browser. Try a smaller file.`);
+      return;
+    }
+    uploadPreviewBar.classList.add("visible");
+    uploadPreviewText.textContent = `Reading ${file.name} (${formatSize(file.size)})…`;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const kind = fileKindLabel(file.type);
+      const msg = {
+        roomId: currentRoom,
+        sender: currentUser,
+        kind,
+        fileName: file.name,
+        fileSize: file.size,
+        dataUrl: reader.result,
+        timestamp: Date.now()
+      };
+      try{
+        await addMessage(msg);
+        appendOne(msg);
+        if(bus) bus.postMessage({ type: "new-message", roomId: currentRoom });
+      } catch(err){
+        alert("Couldn't store this file — the browser's storage may be full. Try a smaller file or clear some room history.");
+      }
+      uploadPreviewBar.classList.remove("visible");
+    };
+    reader.onerror = () => {
+      alert("Couldn't read that file.");
+      uploadPreviewBar.classList.remove("visible");
+    };
+    reader.readAsDataURL(file);
+  });
+
+  cancelUpload.addEventListener("click", () => {
+    uploadPreviewBar.classList.remove("visible");
+  });
+
+  /* ---------------------------------------------------------
+     LIVE SYNC ACROSS TABS
+  --------------------------------------------------------- */
+  if(bus){
+    bus.onmessage = async (e) => {
+      const { type, roomId } = e.data || {};
+      if(type === "room-created"){
+        refreshRoomList();
+      }
+      if(type === "new-message" && roomId === currentRoom){
+        await renderAllMessages();
+      }
+    };
+  }
+
+  /* ---------------------------------------------------------
+     INIT
+  --------------------------------------------------------- */
+  openDB().then(refreshRoomList);
+})();
+</script>
 </body>
 </html>
