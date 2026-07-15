@@ -6,422 +6,318 @@
     <title>Tune In — Chat Rooms</title>
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
-        :root {
-            --bg: #0a0a0a;
-            --card: #141414;
-            --text: #f0f0f0;
-            --accent: #ff0055;
-            --input-bg: #1f1f1f;
-            --border: #333;
-        }
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-        .hidden { display: none !important; }
+        /* Base Styles */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #0f0f11; color: #fff; overflow: hidden; height: 100vh; display: flex; justify-content: center; align-items: center; }
         
-        /* Setup View */
-        #setupView {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            text-align: center;
-        }
-        .brand {
-            font-size: 3rem;
-            font-weight: bold;
-            letter-spacing: -1px;
-            margin-bottom: 10px;
-        }
-        .brand span { color: var(--accent); }
-        .tagline { color: #888; margin-bottom: 40px; }
-        
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-            border-bottom: 2px solid var(--border);
-            width: 320px;
-        }
-        .tab-btn {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 1.2rem;
-            padding: 10px 20px;
-            cursor: pointer;
-            flex: 1;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-        }
-        .tab-btn.active {
-            color: var(--text);
-            border-bottom: 2px solid var(--accent);
-        }
-        
-        .form-container {
-            background: var(--card);
-            padding: 30px;
-            border-radius: 12px;
-            width: 320px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .form-group { margin-bottom: 20px; text-align: left; }
-        .form-group label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: #aaa; }
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: var(--input-bg);
-            color: var(--text);
-            box-sizing: border-box;
-            font-size: 1rem;
-        }
-        .form-group input:focus { outline: none; border-color: var(--accent); }
-        
-        .btn {
-            width: 100%;
-            padding: 14px;
-            border-radius: 8px;
-            border: none;
-            background: var(--accent);
-            color: white;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .btn:hover { opacity: 0.9; }
-        .btn-secondary {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
-        }
-        .hint { font-size: 0.8rem; color: #666; margin-top: 15px; }
-        #errorMsg { color: var(--accent); font-size: 0.9rem; margin-top: 10px; min-height: 1.2em; }
+        /* Screens */
+        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; transition: opacity 0.5s ease, transform 0.5s ease; opacity: 0; pointer-events: none; transform: scale(0.98); }
+        .screen.active { opacity: 1; pointer-events: all; transform: scale(1); }
 
-        /* Chat View */
-        #chatView {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-        .chat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            background: var(--card);
-            border-bottom: 1px solid var(--border);
-        }
-        .room-info { display: flex; align-items: center; gap: 10px; }
-        .live-dot {
-            width: 10px;
-            height: 10px;
-            background: var(--accent);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-        .room-name { font-weight: bold; font-size: 1.2rem; }
-        .leave-btn {
-            background: #2a2a2a;
-            border: 1px solid var(--border);
-            color: #ff5555;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-        }
+        /* Landing Screen */
+        #landing { justify-content: center; align-items: center; text-align: center; }
+        .logo { font-size: 3rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 10px; }
+        .logo span { color: #ff0055; }
+        .tagline { color: #888; margin-bottom: 40px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 2px; }
         
-        #messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        .msg {
-            max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 18px;
-            background: var(--card);
-            word-wrap: break-word;
-            position: relative;
-        }
-        .msg-name { font-size: 0.8rem; color: var(--accent); margin-bottom: 4px; font-weight: bold; }
-        .msg-text { font-size: 1rem; white-space: pre-wrap; }
-        .msg-file { color: #00bfff; text-decoration: none; display: block; margin-top: 5px; }
-        .msg-file img, .msg-file video { max-width: 100%; border-radius: 8px; margin-top: 5px; }
-        
-        .system-msg {
-            text-align: center;
-            color: #888;
-            font-size: 0.85rem;
-            background: #1a1a1a;
-            padding: 5px 15px;
-            border-radius: 20px;
-            align-self: center;
-        }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; background: #1a1a1e; padding: 5px; border-radius: 12px; }
+        .tab-btn { padding: 10px 30px; border: none; background: transparent; color: #666; cursor: pointer; border-radius: 8px; font-weight: 600; transition: all 0.3s; }
+        .tab-btn.active { background: #ff0055; color: #fff; }
 
-        .chat-input-area {
-            padding: 15px 20px;
-            background: var(--card);
-            border-top: 1px solid var(--border);
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        .file-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #888;
-        }
-        #messageInput {
-            flex: 1;
-            padding: 12px 15px;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            background: var(--input-bg);
-            color: var(--text);
-            font-size: 1rem;
-        }
-        .send-btn {
-            background: var(--accent);
-            color: white;
-            border: none;
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            font-size: 1.2rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #fileInput { display: none; }
-        .file-status { font-size: 0.8rem; color: #888; margin-right: 10px; }
+        .form-container { background: #1a1a1e; padding: 30px; border-radius: 16px; width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .form-group input { width: 100%; padding: 12px; background: #0f0f11; border: 1px solid #333; color: #fff; border-radius: 8px; font-size: 1rem; transition: border-color 0.3s; }
+        .form-group input:focus { outline: none; border-color: #ff0055; }
+        
+        .btn-main { width: 100%; padding: 14px; background: #ff0055; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: transform 0.2s, background 0.3s; margin-top: 10px; }
+        .btn-main:hover { background: #cc0044; transform: translateY(-2px); }
+        
+        .hint { font-size: 0.75rem; color: #555; margin-top: 15px; }
+        .error-msg { color: #ff476f; font-size: 0.85rem; margin-top: 10px; min-height: 20px; }
+
+        /* Loading Animation */
+        #loading { justify-content: center; align-items: center; flex-direction: column; }
+        .signal-loader { display: flex; gap: 6px; align-items: flex-end; height: 40px; margin-bottom: 20px; }
+        .signal-bar { width: 6px; background: #ff0055; border-radius: 4px; animation: signal 1s infinite ease-in-out; }
+        .signal-bar:nth-child(1) { height: 15px; animation-delay: 0.1s; }
+        .signal-bar:nth-child(2) { height: 30px; animation-delay: 0.2s; }
+        .signal-bar:nth-child(3) { height: 45px; animation-delay: 0.3s; }
+        .signal-bar:nth-child(4) { height: 30px; animation-delay: 0.4s; }
+        .signal-bar:nth-child(5) { height: 15px; animation-delay: 0.5s; }
+        @keyframes signal { 0%, 100% { opacity: 0.3; transform: scaleY(0.8); } 50% { opacity: 1; transform: scaleY(1); } }
+        .loading-text { color: #888; letter-spacing: 2px; font-size: 0.9rem; text-transform: uppercase; }
+
+        /* Chat Screen */
+        #chatView { background: #0f0f11; }
+        .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #1a1a1e; border-bottom: 1px solid #222; }
+        .chat-header h2 { font-size: 1.2rem; color: #fff; }
+        .chat-header .room-id { color: #ff0055; font-weight: 800; }
+        .leave-btn { padding: 8px 16px; background: transparent; border: 1px solid #ff476f; color: #ff476f; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .leave-btn:hover { background: #ff476f; color: #fff; }
+
+        .chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth; }
+        
+        /* Message Animations */
+        .message-wrapper { opacity: 0; transform: translateY(15px); animation: slideUp 0.4s ease forwards; }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+        
+        .message { max-width: 75%; padding: 12px 16px; border-radius: 16px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; position: relative; }
+        .message .sender { font-size: 0.75rem; color: #aaa; margin-bottom: 4px; font-weight: 600; }
+        .message .time { font-size: 0.65rem; color: #666; margin-top: 5px; text-align: right; }
+        
+        .message.them { align-self: flex-start; background: #1a1a1e; border-bottom-left-radius: 4px; }
+        .message.you { align-self: flex-end; background: #ff0055; color: #fff; border-bottom-right-radius: 4px; }
+        .message.you .sender { color: #ffdddd; }
+        .message.you .time { color: #ffaaaa; }
+        
+        .system-msg { align-self: center; background: #222; color: #888; padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; margin: 5px 0; }
+
+        .file-container { margin-top: 8px; }
+        .file-container img { max-width: 100%; border-radius: 8px; cursor: pointer; }
+        .file-container video { max-width: 100%; border-radius: 8px; }
+        .file-container a { color: #fff; text-decoration: underline; display: block; margin-top: 5px; font-size: 0.85rem; }
+
+        /* Input Area */
+        .input-area { display: flex; align-items: center; padding: 15px; background: #1a1a1e; border-top: 1px solid #222; gap: 10px; }
+        .file-btn { background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer; transition: color 0.3s; }
+        .file-btn:hover { color: #fff; }
+        .file-input { display: none; }
+        
+        .text-input { flex: 1; padding: 12px 16px; background: #0f0f11; border: 1px solid #333; color: #fff; border-radius: 20px; font-size: 1rem; transition: border-color 0.3s; }
+        .text-input:focus { outline: none; border-color: #ff0055; }
+        
+        .send-btn { width: 40px; height: 40px; background: #ff0055; border: none; border-radius: 50%; color: #fff; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+        .send-btn:hover { transform: scale(1.1); }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
 </head>
 <body>
 
-    <!-- Setup View -->
-    <div id="setupView">
-        <div class="brand">Tune <span>In</span></div>
+    <!-- Landing Screen -->
+    <div id="landing" class="screen active">
+        <div class="logo">Tune <span>In</span></div>
         <div class="tagline">◉ ON AIR · Encrypted P2P Chat</div>
 
         <div class="tabs">
-            <button class="tab-btn active" id="tabJoin" onclick="switchTab('join')">Join</button>
-            <button class="tab-btn" id="tabCreate" onclick="switchTab('create')">Create</button>
+            <button class="tab-btn active" id="joinTabBtn" onclick="switchTab('join')">Join</button>
+            <button class="tab-btn" id="createTabBtn" onclick="switchTab('create')">Create</button>
         </div>
 
-        <!-- Join Form -->
-        <div class="form-container" id="joinForm">
-            <div class="form-group">
-                <label>Your name</label>
-                <input type="text" id="nameInputJoin" placeholder="Anonymous">
+        <div class="form-container">
+            <!-- Join Form -->
+            <div id="joinForm">
+                <div class="form-group">
+                    <label>Your name</label>
+                    <input type="text" id="joinName" placeholder="Enter your name">
+                </div>
+                <div class="form-group">
+                    <label>Room ID</label>
+                    <input type="text" id="joinRoomId" placeholder="e.g., radio-99">
+                </div>
+                <button class="btn-main" onclick="joinRoom()">Join Room</button>
+                <div class="hint">No rooms yet on this browser — create one first or join an existing one.</div>
+                <div class="error-msg" id="joinError"></div>
             </div>
-            <div class="form-group">
-                <label>Room ID</label>
-                <input type="text" id="roomIdInputJoin" placeholder="e.g. hello123">
-            </div>
-            <button class="btn" onclick="joinRoom()">Join Room</button>
-            <div class="hint">No rooms yet on this browser — create one first or join an existing one.</div>
-            <div id="errorMsg"></div>
-        </div>
 
-        <!-- Create Form -->
-        <div class="form-container hidden" id="createForm">
-            <div class="form-group">
-                <label>Your name</label>
-                <input type="text" id="nameInputCreate" placeholder="Anonymous">
+            <!-- Create Form -->
+            <div id="createForm" style="display: none;">
+                <div class="form-group">
+                    <label>Your name</label>
+                    <input type="text" id="createName" placeholder="Enter your name">
+                </div>
+                <div class="form-group">
+                    <label>New room ID</label>
+                    <input type="text" id="createRoomId" placeholder="e.g., my-secret-room">
+                </div>
+                <button class="btn-main" onclick="createRoom()">Create Room</button>
+                <div class="hint">Room IDs must be unique. Letters, numbers, dashes work best.</div>
+                <div class="error-msg" id="createError"></div>
             </div>
-            <div class="form-group">
-                <label>New room ID</label>
-                <input type="text" id="roomIdInputCreate" placeholder="e.g. my-secret-room">
-            </div>
-            <button class="btn" onclick="createRoom()">Create Room</button>
-            <div class="hint">Room IDs must be unique. Letters, numbers, dashes work best.</div>
-            <div id="errorMsgCreate"></div>
         </div>
     </div>
 
-    <!-- Chat View -->
-    <div id="chatView" class="hidden">
+    <!-- Loading Screen -->
+    <div id="loading" class="screen">
+        <div class="signal-loader">
+            <div class="signal-bar"></div>
+            <div class="signal-bar"></div>
+            <div class="signal-bar"></div>
+            <div class="signal-bar"></div>
+            <div class="signal-bar"></div>
+        </div>
+        <div class="loading-text">Tuning in...</div>
+    </div>
+
+    <!-- Chat Screen -->
+    <div id="chatView" class="screen">
         <div class="chat-header">
-            <div class="room-info">
-                <div class="live-dot"></div>
-                <div class="room-name" id="roomNameDisplay">CH 00</div>
-            </div>
+            <h2>CH <span class="room-id" id="chatRoomId">--</span></h2>
             <button class="leave-btn" onclick="leaveRoom()">Leave</button>
         </div>
 
-        <div id="messages">
-            <div class="system-msg">Nothing here yet. Send the first message below.</div>
+        <div class="chat-box" id="chatBox">
+            <div class="message-wrapper" style="align-self: center; margin-top: 20px;">
+                <div class="system-msg">Nothing here yet. Send the first message below.</div>
+            </div>
         </div>
 
-        <div class="chat-input-area">
-            <input type="file" id="fileInput" onchange="handleFileSelect(this)">
+        <div class="input-area">
             <button class="file-btn" onclick="document.getElementById('fileInput').click()">📎</button>
-            <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+            <input type="file" id="fileInput" class="file-input" onchange="handleFile(this)">
+            <input type="text" id="messageInput" class="text-input" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
             <button class="send-btn" onclick="sendMessage()">➤</button>
         </div>
     </div>
 
     <script>
         let peer = null;
-        let connections = {}; // Store peer connections
+        let connections = {};
         let isHost = false;
-        let roomId = null;
-        let userName = "Anonymous";
-        let currentFile = null;
+        let currentRoomId = null;
+        let currentUserName = null;
+        const MAX_USERS = 10;
 
         function switchTab(tab) {
-            if (tab === 'join') {
-                document.getElementById('joinForm').classList.remove('hidden');
-                document.getElementById('createForm').classList.add('hidden');
-                document.getElementById('tabJoin').classList.add('active');
-                document.getElementById('tabCreate').classList.remove('active');
-            } else {
-                document.getElementById('joinForm').classList.add('hidden');
-                document.getElementById('createForm').classList.remove('hidden');
-                document.getElementById('tabJoin').classList.remove('active');
-                document.getElementById('tabCreate').classList.add('active');
-            }
+            document.getElementById('joinForm').style.display = tab === 'join' ? 'block' : 'none';
+            document.getElementById('createForm').style.display = tab === 'create' ? 'block' : 'none';
+            document.getElementById('joinTabBtn').classList.toggle('active', tab === 'join');
+            document.getElementById('createTabBtn').classList.toggle('active', tab === 'create');
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
         }
 
         function createRoom() {
-            userName = document.getElementById('nameInputCreate').value || "Anonymous";
-            roomId = document.getElementById('roomIdInputCreate').value.trim();
-            if (!roomId) { document.getElementById('errorMsgCreate').innerText = "Please enter a Room ID."; return; }
+            const name = document.getElementById('createName').value.trim();
+            const roomId = document.getElementById('createRoomId').value.trim();
+            const errEl = document.getElementById('createError');
+            errEl.textContent = '';
 
+            if (!name || !roomId) { errEl.textContent = 'Please enter both fields.'; return; }
+
+            currentUserName = name;
+            currentRoomId = roomId;
             isHost = true;
-            peer = new Peer(roomId);
+            showScreen('loading');
+
+            const peerId = `tunein-host-${roomId}`;
+            peer = new Peer(peerId);
 
             peer.on('open', () => {
-                enterChatRoom();
+                document.getElementById('chatRoomId').textContent = roomId;
+                showScreen('chatView');
+                addSystemMessage(`You created room ${roomId}. Waiting for others...`);
             });
 
             peer.on('connection', (conn) => {
-                handleNewConnection(conn);
+                if (Object.keys(connections).length >= MAX_USERS - 1) {
+                    conn.on('open', () => {
+                        conn.send({ type: 'system', msg: 'Room is full (Max 10 users).' });
+                        setTimeout(() => conn.close(), 1000);
+                    });
+                    return;
+                }
+                
+                conn.on('open', () => {
+                    connections[conn.peer] = conn;
+                    broadcastSystemMessage(`${name} just connected`); // Host tells everyone
+                    // Send current user list to the new client
+                    conn.send({ type: 'roster', users: Object.keys(connections).map(p => ({id: p, name: connections[p].metadata.name})) });
+                });
+
+                conn.on('data', (data) => handleData(data, conn));
+                conn.on('close', () => handleDisconnect(conn.peer));
             });
 
             peer.on('error', (err) => {
-                document.getElementById('errorMsgCreate').innerText = "Error: " + err.type;
+                console.error(err);
+                if (err.type === 'unavailable-id') {
+                    errEl.textContent = 'Room ID already taken. Try another one.';
+                    showScreen('landing');
+                }
             });
         }
 
         function joinRoom() {
-            userName = document.getElementById('nameInputJoin').value || "Anonymous";
-            roomId = document.getElementById('roomIdInputJoin').value.trim();
-            if (!roomId) { document.getElementById('errorMsg').innerText = "Please enter a Room ID."; return; }
+            const name = document.getElementById('joinName').value.trim();
+            const roomId = document.getElementById('joinRoomId').value.trim();
+            const errEl = document.getElementById('joinError');
+            errEl.textContent = '';
 
+            if (!name || !roomId) { errEl.textContent = 'Please enter both fields.'; return; }
+
+            currentUserName = name;
+            currentRoomId = roomId;
             isHost = false;
-            peer = new Peer(); // Generate random ID for client
+            showScreen('loading');
+
+            const peerId = `tunein-client-${roomId}-${Math.random().toString(36).substr(2, 5)}`;
+            peer = new Peer(peerId);
 
             peer.on('open', () => {
-                let conn = peer.connect(roomId, { reliable: true });
-                
+                const hostId = `tunein-host-${roomId}`;
+                const conn = peer.connect(hostId, { reliable: true, metadata: { name: name } });
+
                 conn.on('open', () => {
-                    handleNewConnection(conn);
-                    enterChatRoom();
-                    // Announce join to host
-                    conn.send({ type: 'system', text: `${userName} joined the room` });
+                    connections[hostId] = conn;
+                    document.getElementById('chatRoomId').textContent = roomId;
+                    showScreen('chatView');
+                    addSystemMessage(`You joined room ${roomId}`);
                 });
 
-                conn.on('error', () => {
-                    document.getElementById('errorMsg').innerText = "Could not connect. Room might not exist.";
-                });
+                conn.on('data', (data) => handleData(data, conn));
+                conn.on('close', () => handleDisconnect(hostId));
+
+                setTimeout(() => {
+                    if (!conn.open) {
+                        errEl.textContent = 'Room not found. Check the ID or create a new one.';
+                        showScreen('landing');
+                        peer.destroy();
+                    }
+                }, 3000);
             });
 
             peer.on('error', (err) => {
+                console.error(err);
                 if (err.type === 'peer-unavailable') {
-                    document.getElementById('errorMsg').innerText = "Room not found. Check the ID or create a new one.";
+                    errEl.textContent = 'Room not found. Check the ID or create a new one.';
                 } else {
-                    document.getElementById('errorMsg').innerText = "Error: " + err.type;
+                    errEl.textContent = 'Error connecting. Please try again.';
                 }
+                showScreen('landing');
             });
         }
 
-        function handleNewConnection(conn) {
-            conn.on('data', (data) => {
-                handleIncomingData(data, conn);
-            });
-
-            conn.on('close', () => {
-                if (connections[conn.peer]) {
-                    addSystemMessage(connections[conn.peer].name + " left the room");
-                    delete connections[conn.peer];
-                    // If host, notify others
-                    if (isHost) broadcastData({ type: 'system', text: connections[conn.peer]?.name + " left" });
-                }
-            });
-
-            connections[conn.peer] = { conn: conn, name: "Unknown User" };
-        }
-
-        function handleIncomingData(data, conn) {
-            if (data.type === 'system') {
-                addSystemMessage(data.text);
-                if (connections[conn.peer]) connections[conn.peer].name = data.text.split(" ")[0]; // basic name capture
-                // If host, relay to others
-                if (isHost) broadcastData(data, conn.peer);
-            } 
-            else if (data.type === 'name') {
-                if (connections[conn.peer]) connections[conn.peer].name = data.name;
-                if (isHost) broadcastData(data, conn.peer); // relay name
-            }
-            else if (data.type === 'message' || data.type === 'file') {
-                addMessageToUI(data.name, data.text, data.fileUrl, data.fileName, data.isImage, data.isVideo);
-                if (isHost) broadcastData(data, conn.peer); // Relay to other clients
-            }
-        }
-
-        function broadcastData(data, excludePeerId = null) {
-            for (let id in connections) {
-                if (id !== excludePeerId && connections[id].conn.open) {
-                    connections[id].conn.send(data);
-                }
-            }
-        }
-
-        function enterChatRoom() {
-            document.getElementById('setupView').classList.add('hidden');
-            document.getElementById('chatView').classList.remove('hidden');
-            document.getElementById('roomNameDisplay').innerText = roomId;
-            addSystemMessage("You joined the room as " + userName);
-            // Send name to host so they know who we are
-            if (!isHost) {
-                for (let id in connections) {
-                    connections[id].conn.send({ type: 'name', name: userName });
-                }
+        function handleData(data, conn) {
+            if (data.type === 'text') {
+                addMessage(data.msg, data.sender, data.timestamp, false);
+            } else if (data.type === 'file') {
+                addFile(data.file, data.fileName, data.fileType, data.sender, data.timestamp, false);
+            } else if (data.type === 'system') {
+                addSystemMessage(data.msg);
+            } else if (data.type === 'roster') {
+                // Populate connections if host sent roster (for future mesh support, currently just host-relay)
             }
         }
 
         function sendMessage() {
-            let input = document.getElementById('messageInput');
-            let text = input.value.trim();
-            if (!text) return;
+            const input = document.getElementById('messageInput');
+            const msg = input.value.trim();
+            if (!msg) return;
 
-            let data = { type: 'message', name: userName, text: text };
-            addMessageToUI(userName, text);
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            addMessage(msg, currentUserName, timestamp, true);
             
-            // Send to all peers
-            for (let id in connections) {
-                if (connections[id].conn.open) connections[id].conn.send(data);
-            }
+            const payload = { type: 'text', msg: msg, sender: currentUserName, timestamp: timestamp };
+            broadcast(payload);
             input.value = '';
         }
 
@@ -429,103 +325,110 @@
             if (e.key === 'Enter') sendMessage();
         }
 
-        function handleFileSelect(input) {
-            let file = input.files[0];
+        function handleFile(input) {
+            const file = input.files[0];
             if (!file) return;
 
-            if (file.size > 15 * 1024 * 1024) {
-                alert("File too large. Max 15MB.");
+            if (file.size > 5 * 1024 * 1024) {
+                addSystemMessage("File too large. Max 5MB.");
                 input.value = '';
                 return;
             }
 
-            let reader = new FileReader();
+            const reader = new FileReader();
             reader.onload = function(e) {
-                let data = {
-                    type: 'file',
-                    name: userName,
-                    fileName: file.name,
-                    fileUrl: e.target.result,
-                    isImage: file.type.startsWith('image/'),
-                    isVideo: file.type.startsWith('video/')
-                };
-                
-                addMessageToUI(userName, "", data.fileUrl, data.fileName, data.isImage, data.isVideo);
-                
-                for (let id in connections) {
-                    if (connections[id].conn.open) connections[id].conn.send(data);
-                }
+                const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                addFile(e.target.result, file.name, file.type, currentUserName, timestamp, true);
+                const payload = { type: 'file', file: e.target.result, fileName: file.name, fileType: file.type, sender: currentUserName, timestamp: timestamp };
+                broadcast(payload);
+                input.value = '';
             };
             reader.readAsDataURL(file);
-            input.value = '';
         }
 
-        function addMessageToUI(name, text, fileUrl = null, fileName = null, isImage = false, isVideo = false) {
-            let messages = document.getElementById('messages');
-            let msgDiv = document.createElement('div');
-            msgDiv.className = 'msg';
+        function broadcast(payload) {
+            Object.values(connections).forEach(conn => {
+                if (conn.open) conn.send(payload);
+            });
+        }
+
+        function broadcastSystemMessage(msg) {
+            const payload = { type: 'system', msg: msg };
+            broadcast(payload);
+            addSystemMessage(msg);
+        }
+
+        function handleDisconnect(peerId) {
+            const conn = connections[peerId];
+            let name = "Someone";
+            if (conn && conn.metadata) name = conn.metadata.name;
             
-            let nameDiv = document.createElement('div');
-            nameDiv.className = 'msg-name';
-            nameDiv.innerText = name;
-            msgDiv.appendChild(nameDiv);
-
-            if (text) {
-                let textDiv = document.createElement('div');
-                textDiv.className = 'msg-text';
-                textDiv.innerText = text;
-                msgDiv.appendChild(textDiv);
-            }
-
-            if (fileUrl) {
-                let link = document.createElement('a');
-                link.className = 'msg-file';
-                link.href = fileUrl;
-                link.download = fileName;
-                link.innerText = "📄 " + fileName;
-                
-                if (isImage) {
-                    let img = document.createElement('img');
-                    img.src = fileUrl;
-                    link.appendChild(img);
-                } else if (isVideo) {
-                    let video = document.createElement('video');
-                    video.src = fileUrl;
-                    video.controls = true;
-                    link.appendChild(video);
-                }
-                msgDiv.appendChild(link);
-            }
-
-            messages.appendChild(msgDiv);
-            messages.scrollTop = messages.scrollHeight;
-        }
-
-        function addSystemMessage(text) {
-            let messages = document.getElementById('messages');
-            let sysDiv = document.createElement('div');
-            sysDiv.className = 'system-msg';
-            sysDiv.innerText = text;
-            messages.appendChild(sysDiv);
-            messages.scrollTop = messages.scrollHeight;
+            delete connections[peerId];
+            addSystemMessage(`${name} left the room`);
         }
 
         function leaveRoom() {
-            if (peer) {
-                // Notify others
-                for (let id in connections) {
-                    if (connections[id].conn.open) {
-                        connections[id].conn.send({ type: 'system', text: userName + " left the room" });
-                        connections[id].conn.close();
-                    }
-                }
-                peer.destroy();
-                peer = null;
-            }
+            if (peer) peer.destroy();
             connections = {};
-            document.getElementById('chatView').classList.add('hidden');
-            document.getElementById('setupView').classList.remove('hidden');
-            document.getElementById('messages').innerHTML = '<div class="system-msg">Nothing here yet. Send the first message below.</div>';
+            showScreen('landing');
+            document.getElementById('chatBox').innerHTML = '<div class="message-wrapper" style="align-self: center; margin-top: 20px;"><div class="system-msg">Nothing here yet. Send the first message below.</div></div>';
+        }
+
+        // UI Rendering Functions
+        function addMessage(msg, sender, timestamp, isYou) {
+            const chatBox = document.getElementById('chatBox');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper';
+            wrapper.innerHTML = `
+                <div class="message ${isYou ? 'you' : 'them'}">
+                    <div class="sender">${isYou ? 'You' : sender}</div>
+                    ${escapeHtml(msg)}
+                    <div class="time">${timestamp}</div>
+                </div>
+            `;
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function addFile(fileData, fileName, fileType, sender, timestamp, isYou) {
+            const chatBox = document.getElementById('chatBox');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper';
+            
+            let fileHtml = '';
+            if (fileType.startsWith('image/')) {
+                fileHtml = `<div class="file-container"><img src="${fileData}" alt="${fileName}"></div>`;
+            } else if (fileType.startsWith('video/')) {
+                fileHtml = `<div class="file-container"><video controls src="${fileData}"></video></div>`;
+            } else {
+                fileHtml = `<div class="file-container"><a href="${fileData}" download="${fileName}">📄 ${escapeHtml(fileName)}</a></div>`;
+            }
+
+            wrapper.innerHTML = `
+                <div class="message ${isYou ? 'you' : 'them'}">
+                    <div class="sender">${isYou ? 'You' : sender}</div>
+                    ${fileHtml}
+                    <div class="time">${timestamp}</div>
+                </div>
+            `;
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function addSystemMessage(msg) {
+            const chatBox = document.getElementById('chatBox');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper';
+            wrapper.style.alignSelf = 'center';
+            wrapper.innerHTML = `<div class="system-msg">${escapeHtml(msg)}</div>`;
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>
