@@ -578,7 +578,7 @@
      person.
   --------------------------------------------------------- */
   const DB_NAME = "tuneInChatDB";
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   let db;
 
   function openDB(){
@@ -592,6 +592,10 @@
         if(!_db.objectStoreNames.contains("messages")){
           const store = _db.createObjectStore("messages", { keyPath: "msgId", autoIncrement: true });
           store.createIndex("roomId", "roomId", { unique: false });
+        }
+        if(!_db.objectStoreNames.contains("presence")){
+          const pstore = _db.createObjectStore("presence", { keyPath: "key" });
+          pstore.createIndex("roomId", "roomId", { unique: false });
         }
       };
       req.onsuccess = (e) => { db = e.target.result; resolve(db); };
@@ -645,7 +649,100 @@
     });
   }
 
+  function deleteRoom(roomId){
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("rooms", "readwrite");
+      tx.objectStore("rooms").delete(roomId);
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e);
+    });
+  }
+
+  function deleteMessagesForRoom(roomId){
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("messages", "readwrite");
+      const idx = tx.objectStore("messages").index("roomId");
+      const req = idx.openCursor(IDBKeyRange.only(roomId));
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if(cursor){ cursor.delete(); cursor.continue(); }
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e);
+    });
+  }
+
+  /* ---- Presence: who is currently sitting in each room ---- */
+  const PRESENCE_STALE_MS = 12000;   // a presence entry older than this is treated as gone
+  const HEARTBEAT_MS = 4000;         // how often an active tab refreshes its presence
+  const SWEEP_MS = 6000;             // how often we check for empty rooms to free
+
+  function upsertPresence(roomId, clientId){
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("presence", "readwrite");
+      tx.objectStore("presence").put({ key: roomId + "::" + clientId, roomId, clientId, lastSeen: Date.now() });
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e);
+    });
+  }
+
+  function deletePresence(roomId, clientId){
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("presence", "readwrite");
+      tx.objectStore("presence").delete(roomId + "::" + clientId);
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e);
+    });
+  }
+
+  function getPresenceForRoom(roomId){
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("presence", "readonly");
+      const idx = tx.objectStore("presence").index("roomId");
+      const req = idx.getAll(IDBKeyRange.only(roomId));
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = (e) => reject(e);
+    });
+  }
+
+  function deletePresenceEntries(entries){
+    return new Promise((resolve, reject) => {
+      if(!entries.length) return resolve();
+      const tx = db.transaction("presence", "readwrite");
+      const store = tx.objectStore("presence");
+      entries.forEach(en => store.delete(en.key));
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e);
+    });
+  }
+
+  // Prunes stale presence for a room; if no one is left, frees the room ID
+  // (deletes the room + its message history) and announces it. Returns true if freed.
+  async function checkAndFreeIfEmpty(roomId){
+    const entries = await getPresenceForRoom(roomId);
+    const now = Date.now();
+    const stale = entries.filter(e => now - e.lastSeen > PRESENCE_STALE_MS);
+    const alive = entries.filter(e => now - e.lastSeen <= PRESENCE_STALE_MS);
+    if(stale.length) await deletePresenceEntries(stale);
+    if(alive.length === 0){
+      await deleteRoom(roomId);
+      await deleteMessagesForRoom(roomId);
+      if(bus) bus.postMessage({ type: "room-freed", roomId });
+      return true;
+    }
+    return false;
+  }
+
+  async function sweepAllRooms(){
+    try{
+      const rooms = await getAllRooms();
+      for(const r of rooms){ await checkAndFreeIfEmpty(r.id); }
+    } catch(err){ /* best-effort cleanup, ignore transient errors */ }
+  }
+
   const bus = ("BroadcastChannel" in window) ? new BroadcastChannel("tunein-bus") : null;
+  const clientId = (crypto.randomUUID ? crypto.randomUUID() : ("c" + Date.now() + Math.random().toString(16).slice(2)));
+  let heartbeatTimer = null;
 
   /* ---------------------------------------------------------
      LANDING SCREEN LOGIC
@@ -815,17 +912,37 @@
     headerUsername.textContent = name;
     await renderAllMessages();
     textInput.focus();
+
+    await upsertPresence(roomId, clientId);
+    if(heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer = setInterval(() => {
+      if(currentRoom) upsertPresence(currentRoom, clientId);
+    }, HEARTBEAT_MS);
   }
 
-  leaveBtn.addEventListener("click", () => {
+  async function leaveCurrentRoom(){
+    if(!currentRoom) return;
+    const leavingRoom = currentRoom;
+    if(heartbeatTimer){ clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    await deletePresence(leavingRoom, clientId);
+    await checkAndFreeIfEmpty(leavingRoom); // frees the ID immediately if that was the last person
     currentRoom = null;
     currentUser = null;
+  }
+
+  leaveBtn.addEventListener("click", async () => {
+    await leaveCurrentRoom();
     chatApp.classList.remove("visible");
     landing.style.display = "block";
     joinRoomId.value = "";
     createRoomIdEl.value = "";
     updateDial("", false);
     refreshRoomList();
+  });
+
+  // Best-effort cleanup if the tab is closed/refreshed while in a room.
+  window.addEventListener("pagehide", () => {
+    if(currentRoom) deletePresence(currentRoom, clientId);
   });
 
   function fileKindLabel(type){
@@ -992,13 +1109,20 @@
       if(type === "new-message" && roomId === currentRoom){
         await renderAllMessages();
       }
+      if(type === "room-freed"){
+        refreshRoomList();
+      }
     };
   }
 
   /* ---------------------------------------------------------
      INIT
   --------------------------------------------------------- */
-  openDB().then(refreshRoomList);
+  openDB().then(() => {
+    refreshRoomList();
+    sweepAllRooms();
+    setInterval(sweepAllRooms, SWEEP_MS);
+  });
 })();
 </script>
 </body>
