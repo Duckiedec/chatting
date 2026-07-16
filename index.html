@@ -450,10 +450,87 @@
     flex-direction:column;
     max-width:76%;
     animation:fadein .25s ease;
+    position:relative;
   }
   @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
   .msg-row.mine{ align-self:flex-end; align-items:flex-end; }
   .msg-row.theirs{ align-self:flex-start; align-items:flex-start; }
+
+  .bubble-wrap{ position:relative; display:flex; align-items:center; gap:4px; }
+  .msg-row.mine .bubble-wrap{ flex-direction:row-reverse; }
+
+  .react-trigger{
+    width:24px; height:24px;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:var(--bg-panel-2);
+    color:var(--text-muted);
+    font-size:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    opacity:0;
+    transform:scale(0.85);
+    transition:opacity .15s ease, transform .15s ease, border-color .15s ease, color .15s ease;
+    flex-shrink:0;
+  }
+  .msg-row:hover .react-trigger{ opacity:1; transform:scale(1); }
+  .react-trigger:hover{ border-color:var(--accent-teal); color:var(--accent-teal); }
+  .react-trigger.picker-open{ opacity:1; transform:scale(1); border-color:var(--accent-teal); color:var(--accent-teal); }
+
+  .emoji-picker{
+    position:absolute;
+    bottom:100%;
+    margin-bottom:6px;
+    display:flex;
+    gap:2px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:5px 6px;
+    box-shadow:0 8px 22px rgba(0,0,0,0.35);
+    z-index:15;
+  }
+  .msg-row.mine .emoji-picker{ right:0; }
+  .msg-row.theirs .emoji-picker{ left:0; }
+  .emoji-picker button{
+    border:none;
+    background:transparent;
+    font-size:18px;
+    padding:4px 5px;
+    border-radius:50%;
+    cursor:pointer;
+    line-height:1;
+    transition:background .12s ease, transform .12s ease;
+  }
+  .emoji-picker button:hover{ background:var(--surface-sunken); transform:scale(1.15); }
+
+  .reaction-badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+    margin-top:3px;
+    padding:0 3px;
+  }
+  .reaction-badge{
+    display:flex;
+    align-items:center;
+    gap:3px;
+    background:var(--bg-panel-2);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:1px 7px;
+    font-size:11.5px;
+    cursor:pointer;
+    color:var(--text-primary);
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .reaction-badge:hover{ border-color:var(--accent-teal); }
+  .reaction-badge.mine-reacted{
+    border-color:var(--accent-teal);
+    background:var(--file-overlay-theirs);
+  }
 
   .msg-meta{
     font-size:10.5px;
@@ -996,6 +1073,9 @@
     if(data.type === "chat" || data.type === "file"){
       appendMessage(data);
       if(isHost) broadcastExcept(fromPeerId, data); // relay to everyone else — the fix
+    } else if(data.type === "reaction"){
+      applyReaction(data.messageId, data.emoji, data.username);
+      if(isHost) broadcastExcept(fromPeerId, data);
     } else if(data.type === "system"){
       showSystemToast(data.text);
     } else if(data.type === "room-full"){
@@ -1073,6 +1153,10 @@
     meta.className = "msg-meta";
     meta.textContent = (msg.username === currentUser ? "You" : msg.username) + " · " + timeStr(msg.timestamp);
     row.appendChild(meta);
+    row.dataset.msgId = msg.id;
+
+    const bubbleWrap = document.createElement("div");
+    bubbleWrap.className = "bubble-wrap";
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
@@ -1098,8 +1182,100 @@
       a.appendChild(icon); a.appendChild(info);
       bubble.appendChild(a);
     }
-    row.appendChild(bubble);
+
+    const trigger = document.createElement("button");
+    trigger.className = "react-trigger";
+    trigger.type = "button";
+    trigger.textContent = "🙂";
+    trigger.title = "React";
+    trigger.addEventListener("click", (e) => { e.stopPropagation(); toggleEmojiPicker(trigger, msg.id); });
+
+    bubbleWrap.appendChild(bubble);
+    bubbleWrap.appendChild(trigger);
+    row.appendChild(bubbleWrap);
+
+    const badges = document.createElement("div");
+    badges.className = "reaction-badges";
+    row.appendChild(badges);
+    renderReactionBadges(msg.id);
+
     return row;
+  }
+
+  /* ---------------------------------------------------------
+     REACTIONS — small emoji picker on hover, WhatsApp-style.
+     messageId -> { emoji: Set(usernames) }
+  --------------------------------------------------------- */
+  const REACTION_EMOJIS = ["👍","❤️","😂","😮","😢","🙏"];
+  const reactions = {};
+  let openPicker = null;
+
+  function closeEmojiPicker(){
+    if(openPicker && openPicker.el.parentNode) openPicker.el.remove();
+    openPicker = null;
+    document.querySelectorAll(".react-trigger.picker-open").forEach(b => b.classList.remove("picker-open"));
+  }
+  document.addEventListener("click", (e) => {
+    if(openPicker && !openPicker.el.contains(e.target)) closeEmojiPicker();
+  });
+
+  function toggleEmojiPicker(triggerBtn, messageId){
+    if(openPicker && openPicker.messageId === messageId){ closeEmojiPicker(); return; }
+    closeEmojiPicker();
+    const picker = document.createElement("div");
+    picker.className = "emoji-picker";
+    REACTION_EMOJIS.forEach(emoji => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = emoji;
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        sendReaction(messageId, emoji);
+        closeEmojiPicker();
+      });
+      picker.appendChild(b);
+    });
+    triggerBtn.parentNode.appendChild(picker); // bubble-wrap is position:relative-ish via row
+    triggerBtn.classList.add("picker-open");
+    openPicker = { el: picker, messageId };
+  }
+
+  function applyReaction(messageId, emoji, username){
+    if(!reactions[messageId]) reactions[messageId] = {};
+    if(!reactions[messageId][emoji]) reactions[messageId][emoji] = new Set();
+    const set = reactions[messageId][emoji];
+    if(set.has(username)) set.delete(username); else set.add(username);
+    if(set.size === 0) delete reactions[messageId][emoji];
+    renderReactionBadges(messageId);
+  }
+
+  function renderReactionBadges(messageId){
+    const row = messagesEl.querySelector(`[data-msg-id="${CSS.escape(messageId)}"]`);
+    if(!row) return;
+    const badges = row.querySelector(".reaction-badges");
+    if(!badges) return;
+    badges.innerHTML = "";
+    const forMsg = reactions[messageId] || {};
+    Object.keys(forMsg).forEach(emoji => {
+      const users = forMsg[emoji];
+      if(!users || users.size === 0) return;
+      const badge = document.createElement("button");
+      badge.type = "button";
+      badge.className = "reaction-badge" + (users.has(currentUser) ? " mine-reacted" : "");
+      badge.textContent = `${emoji} ${users.size}`;
+      badge.addEventListener("click", (e) => { e.stopPropagation(); sendReaction(messageId, emoji); });
+      badges.appendChild(badge);
+    });
+  }
+
+  function sendReaction(messageId, emoji){
+    applyReaction(messageId, emoji, currentUser); // optimistic local update
+    const payload = { type: "reaction", messageId, emoji, username: currentUser };
+    if(isHost){
+      broadcastAll(payload);
+    } else if(hostPeerId && connections[hostPeerId] && connections[hostPeerId].conn.open){
+      connections[hostPeerId].conn.send(payload);
+    }
   }
 
   function appendMessage(msg){
@@ -1130,10 +1306,14 @@
     }
   }
 
+  function makeMsgId(){
+    return currentUser + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+  }
+
   function sendText(){
     const text = textInput.value.trim();
     if(!text || !currentRoom) return;
-    sendPayload({ type: "chat", username: currentUser, text, timestamp: Date.now() });
+    sendPayload({ type: "chat", username: currentUser, text, timestamp: Date.now(), id: makeMsgId() });
     textInput.value = "";
   }
   sendBtn.addEventListener("click", sendText);
@@ -1159,7 +1339,8 @@
         fileName: file.name,
         fileSize: file.size,
         dataUrl: reader.result,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        id: makeMsgId()
       });
       uploadPreviewBar.classList.remove("visible");
     };
