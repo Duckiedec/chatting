@@ -327,18 +327,100 @@
   .chat-app{
     display:none;
     width:100%;
-    max-width:640px;
+    max-width:780px;
     height:88vh;
     max-height:780px;
     background:var(--bg-panel);
     border:1px solid var(--border);
     border-radius:16px;
     overflow:hidden;
-    flex-direction:column;
+    flex-direction:row;
     box-shadow:0 20px 60px rgba(0,0,0,0.45);
     position:relative;
   }
   .chat-app.visible{ display:flex; }
+
+  .chat-main{
+    flex:1;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    height:100%;
+    position:relative;
+  }
+
+  .chat-sidebar{
+    width:172px;
+    flex-shrink:0;
+    background:var(--bg-panel-2);
+    border-left:1px solid var(--border);
+    padding:16px 14px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .chat-sidebar h4{
+    font-family:'Oswald',sans-serif;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    margin:0;
+  }
+  .roster-item{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    font-size:13px;
+    color:var(--text-primary);
+    padding:2px 0;
+  }
+  .roster-avatar{
+    width:26px; height:26px;
+    border-radius:50%;
+    background:var(--accent-teal);
+    color:var(--on-teal-text);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:700;
+    font-size:12px;
+    flex-shrink:0;
+  }
+  .roster-name{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    min-width:0;
+  }
+  .roster-tag{
+    font-size:9px;
+    color:var(--accent-brass);
+    border:1px solid var(--accent-brass-dim);
+    padding:1px 6px;
+    border-radius:8px;
+    margin-left:auto;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    flex-shrink:0;
+  }
+
+  .roster-toggle-btn{ display:none; }
+
+  @media (max-width:760px){
+    .chat-sidebar{
+      position:absolute;
+      top:0; right:0; bottom:0;
+      transform:translateX(100%);
+      transition:transform .25s ease;
+      box-shadow:-10px 0 26px rgba(0,0,0,0.35);
+      z-index:40;
+      width:200px;
+    }
+    .chat-sidebar.open{ transform:translateX(0); }
+    .roster-toggle-btn{ display:flex; align-items:center; justify-content:center; }
+  }
 
   .toast-stack{
     position:absolute;
@@ -491,9 +573,18 @@
     padding:5px 6px;
     box-shadow:0 8px 22px rgba(0,0,0,0.35);
     z-index:15;
+    animation:pickerPopIn .18s cubic-bezier(.34,1.56,.64,1) both;
   }
-  .msg-row.mine .emoji-picker{ right:0; }
-  .msg-row.theirs .emoji-picker{ left:0; }
+  .emoji-picker.closing{ animation:pickerPopOut .12s ease forwards; }
+  .msg-row.mine .emoji-picker{ right:0; transform-origin:bottom right; }
+  .msg-row.theirs .emoji-picker{ left:0; transform-origin:bottom left; }
+  @keyframes pickerPopIn{
+    from{ opacity:0; transform:scale(0.82) translateY(5px); }
+    to{ opacity:1; transform:scale(1) translateY(0); }
+  }
+  @keyframes pickerPopOut{
+    to{ opacity:0; transform:scale(0.85) translateY(4px); }
+  }
   .emoji-picker button{
     border:none;
     background:transparent;
@@ -502,9 +593,19 @@
     border-radius:50%;
     cursor:pointer;
     line-height:1;
-    transition:background .12s ease, transform .12s ease;
+    transition:background .15s ease, transform .15s cubic-bezier(.34,1.56,.64,1);
+    opacity:0;
+    animation:emojiFadeIn .18s ease forwards;
   }
-  .emoji-picker button:hover{ background:var(--surface-sunken); transform:scale(1.15); }
+  .emoji-picker button:nth-child(1){ animation-delay:.01s; }
+  .emoji-picker button:nth-child(2){ animation-delay:.03s; }
+  .emoji-picker button:nth-child(3){ animation-delay:.05s; }
+  .emoji-picker button:nth-child(4){ animation-delay:.07s; }
+  .emoji-picker button:nth-child(5){ animation-delay:.09s; }
+  .emoji-picker button:nth-child(6){ animation-delay:.11s; }
+  @keyframes emojiFadeIn{ from{ opacity:0; transform:translateY(3px); } to{ opacity:1; transform:translateY(0); } }
+  .emoji-picker button:hover{ background:var(--surface-sunken); transform:scale(1.3) translateY(-2px); }
+  .emoji-picker button:active{ transform:scale(1.05); }
 
   .reaction-badges{
     display:flex;
@@ -760,35 +861,43 @@
 
 <!-- ================= CHAT APP ================= -->
 <div class="chat-app" id="chatApp">
-  <div class="chat-header">
-    <div class="ch-left">
-      <div class="ch-freq" id="headerRoomId">CH 00</div>
-      <div class="ch-user display" id="headerUsername"></div>
+  <div class="chat-main">
+    <div class="chat-header">
+      <div class="ch-left">
+        <div class="ch-freq" id="headerRoomId">CH 00</div>
+        <div class="ch-user display" id="headerUsername"></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div class="on-air"><span class="dot"></span>Live</div>
+        <button class="leave-btn roster-toggle-btn" id="rosterToggleBtn" title="Who's here">👥</button>
+        <button class="leave-btn" id="leaveBtn">Leave</button>
+      </div>
     </div>
-    <div style="display:flex; align-items:center; gap:14px;">
-      <div class="on-air"><span class="dot"></span>Live</div>
-      <button class="leave-btn" id="leaveBtn">Leave</button>
+
+    <div class="messages" id="messagesEl">
+      <div class="empty-state">
+        <span class="display">Nothing here yet</span>
+        No messages, photos, videos or files in this room so far. Send the first one below.
+      </div>
+    </div>
+    <div class="toast-stack" id="toastStack"></div>
+
+    <div class="upload-preview-bar" id="uploadPreviewBar">
+      <span id="uploadPreviewText">Attaching file…</span>
+      <span class="cancel-upload" id="cancelUpload">Cancel</span>
+    </div>
+
+    <div class="composer">
+      <button class="attach-btn" id="attachBtn" title="Attach photo, video or document">📎</button>
+      <input type="file" id="fileInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.rar,.ppt,.pptx,.xls,.xlsx,.csv">
+      <input type="text" class="text-input" id="textInput" placeholder="Type a message…" autocomplete="off">
+      <button class="send-btn" id="sendBtn" title="Send">➤</button>
     </div>
   </div>
 
-  <div class="messages" id="messagesEl">
-    <div class="empty-state">
-      <span class="display">Nothing here yet</span>
-      No messages, photos, videos or files in this room so far. Send the first one below.
-    </div>
-  </div>
-  <div class="toast-stack" id="toastStack"></div>
-
-  <div class="upload-preview-bar" id="uploadPreviewBar">
-    <span id="uploadPreviewText">Attaching file…</span>
-    <span class="cancel-upload" id="cancelUpload">Cancel</span>
-  </div>
-
-  <div class="composer">
-    <button class="attach-btn" id="attachBtn" title="Attach photo, video or document">📎</button>
-    <input type="file" id="fileInput" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.rar,.ppt,.pptx,.xls,.xlsx,.csv">
-    <input type="text" class="text-input" id="textInput" placeholder="Type a message…" autocomplete="off">
-    <button class="send-btn" id="sendBtn" title="Send">➤</button>
+  <div class="chat-sidebar" id="chatSidebar">
+    <h4 id="rosterCount">In this room</h4>
+    <div id="rosterList"></div>
   </div>
 </div>
 
@@ -903,6 +1012,12 @@
   const uploadPreviewText = document.getElementById("uploadPreviewText");
   const cancelUpload = document.getElementById("cancelUpload");
   const onAirLabel = document.querySelector(".on-air");
+  const sidebarEl = document.getElementById("chatSidebar");
+  const rosterListEl = document.getElementById("rosterList");
+  const rosterCountEl = document.getElementById("rosterCount");
+  const rosterToggleBtn = document.getElementById("rosterToggleBtn");
+
+  rosterToggleBtn.addEventListener("click", () => sidebarEl.classList.toggle("open"));
 
   const MAX_USERS = 10;
   const MAX_FILE_BYTES = 15 * 1024 * 1024; // 15MB — remember, this now travels peer-to-peer
@@ -940,6 +1055,8 @@
     setBusy(false);
     currentRoom = null; currentUser = null; hostPeerId = null; isHost = false;
     Object.keys(connections).forEach(k => delete connections[k]);
+    renderRoster([]);
+    sidebarEl.classList.remove("open");
   }
 
   function destroyPeer(){
@@ -959,6 +1076,56 @@
     textInput.focus();
   }
 
+  function normalizeName(u){ return String(u || "").trim().toLowerCase(); }
+
+  // Host-only: is this requested name already used by someone in the room (including the host)?
+  function isNameTaken(name, excludePeerId){
+    if(normalizeName(name) === normalizeName(currentUser)) return true;
+    for(const id in connections){
+      if(id === excludePeerId) continue;
+      if(normalizeName(connections[id].username) === normalizeName(name)) return true;
+    }
+    return false;
+  }
+
+  // Host-only: the authoritative participant list, sent to everyone whenever it changes.
+  function buildRoster(){
+    const roster = [{ username: currentUser, isHost: true }];
+    Object.keys(connections).forEach(id => {
+      roster.push({ username: connections[id].username, isHost: false });
+    });
+    return roster;
+  }
+  function updateRosterAndBroadcast(){
+    const roster = buildRoster();
+    renderRoster(roster);
+    broadcastAll({ type: "roster", roster });
+  }
+
+  function renderRoster(roster){
+    rosterListEl.innerHTML = "";
+    rosterCountEl.textContent = roster.length ? `In this room (${roster.length})` : "In this room";
+    roster.forEach(p => {
+      const row = document.createElement("div");
+      row.className = "roster-item";
+      const avatar = document.createElement("div");
+      avatar.className = "roster-avatar";
+      avatar.textContent = (p.username || "?").trim().charAt(0).toUpperCase() || "?";
+      const name = document.createElement("div");
+      name.className = "roster-name";
+      name.textContent = p.username === currentUser ? `${p.username} (You)` : p.username;
+      row.appendChild(avatar);
+      row.appendChild(name);
+      if(p.isHost){
+        const tag = document.createElement("span");
+        tag.className = "roster-tag";
+        tag.textContent = "Host";
+        row.appendChild(tag);
+      }
+      rosterListEl.appendChild(row);
+    });
+  }
+
   createBtn.addEventListener("click", () => {
     clearError(createError);
     const username = usernameEl.value.trim();
@@ -973,6 +1140,7 @@
     peer.on("open", () => {
       isHost = true;
       enterChat(roomId, username);
+      updateRosterAndBroadcast();
     });
 
     peer.on("connection", (conn) => handleIncomingConnection(conn));
@@ -1013,15 +1181,27 @@
       }, 9000);
 
       conn.on("open", () => {
-        resolved = true;
-        clearTimeout(failSafe);
-        isHost = false;
-        connections[roomId] = { conn, username: null };
-        enterChat(roomId, username);
-        conn.send({ type: "hello", username });
+        conn.send({ type: "hello", username }); // wait for "welcome" before actually entering the room
       });
 
-      conn.on("data", (data) => handlePeerData(data, roomId));
+      conn.on("data", (data) => {
+        if(data.type === "welcome"){
+          resolved = true;
+          clearTimeout(failSafe);
+          isHost = false;
+          connections[roomId] = { conn, username };
+          enterChat(roomId, username);
+          renderRoster(data.roster);
+        } else if(data.type === "username-taken"){
+          resolved = true;
+          clearTimeout(failSafe);
+          showError(joinError, `The name "${username}" is already in use in that room. Pick a different username.`);
+          setBusy(false);
+          destroyPeer();
+        } else {
+          handlePeerData(data, roomId);
+        }
+      });
 
       conn.on("close", () => handlePeerLeft(roomId));
 
@@ -1058,9 +1238,16 @@
     }
     conn.on("data", (data) => {
       if(data.type === "hello"){
+        if(isNameTaken(data.username, conn.peer)){
+          conn.send({ type: "username-taken" });
+          setTimeout(() => conn.close(), 300);
+          return;
+        }
         connections[conn.peer] = { conn, username: data.username };
+        conn.send({ type: "welcome", roster: buildRoster() });
         showSystemToast(`${data.username} has joined the room!`);
         broadcastExcept(conn.peer, { type: "system", text: `${data.username} has joined the room!` });
+        updateRosterAndBroadcast();
       } else {
         handlePeerData(data, conn.peer);
       }
@@ -1078,6 +1265,8 @@
       if(isHost) broadcastExcept(fromPeerId, data);
     } else if(data.type === "system"){
       showSystemToast(data.text);
+    } else if(data.type === "roster"){
+      renderRoster(data.roster);
     } else if(data.type === "room-full"){
       showError(joinError, "That room is full (max 10 people).");
       setBusy(false);
@@ -1100,7 +1289,10 @@
     }
     if(info && info.username){
       showSystemToast(`${info.username} has left the room!`);
-      if(isHost) broadcastExcept(peerId, { type: "system", text: `${info.username} has left the room!` });
+      if(isHost){
+        broadcastExcept(peerId, { type: "system", text: `${info.username} has left the room!` });
+        updateRosterAndBroadcast();
+      }
     }
   }
 
@@ -1211,7 +1403,11 @@
   let openPicker = null;
 
   function closeEmojiPicker(){
-    if(openPicker && openPicker.el.parentNode) openPicker.el.remove();
+    if(openPicker && openPicker.el.parentNode){
+      const el = openPicker.el;
+      el.classList.add("closing");
+      setTimeout(() => el.remove(), 120);
+    }
     openPicker = null;
     document.querySelectorAll(".react-trigger.picker-open").forEach(b => b.classList.remove("picker-open"));
   }
