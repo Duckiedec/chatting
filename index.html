@@ -1509,11 +1509,160 @@
   function sendText(){
     const text = textInput.value.trim();
     if(!text || !currentRoom) return;
+    if(text.toLowerCase() === "/badapple"){
+      textInput.value = "";
+      triggerBadAppleBot();
+      return;
+    }
     sendPayload({ type: "chat", username: currentUser, text, timestamp: Date.now(), id: makeMsgId() });
     textInput.value = "";
   }
   sendBtn.addEventListener("click", sendText);
   textInput.addEventListener("keydown", (e) => { if(e.key === "Enter") sendText(); });
+
+  /* ---------------------------------------------------------
+     /badapple BOT — renders a short, wholly original silhouette
+     animation (a waddling duck) on a <canvas>, records it with
+     MediaRecorder, and posts it into the chat as a bot "user"
+     via the same relay path as any other file message.
+  --------------------------------------------------------- */
+  const BOT_NAME = "🤖 BadAppleBot";
+
+  async function triggerBadAppleBot(){
+    if(!currentRoom) return;
+    showSystemToast("🤖 BadAppleBot is drawing…");
+    try{
+      const blob = await recordDuckAnimation();
+      const dataUrl = await blobToDataURL(blob);
+      sendPayload({
+        type: "file",
+        kind: "video",
+        username: BOT_NAME,
+        fileName: "waddle.webm",
+        fileSize: blob.size,
+        dataUrl,
+        timestamp: Date.now(),
+        id: makeMsgId()
+      });
+    } catch(err){
+      console.error("BadAppleBot render failed:", err);
+      showSystemToast("🤖 BadAppleBot couldn't render that — try again.");
+    }
+  }
+
+  function blobToDataURL(blob){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // Draws a small original silhouette scene — a duck waddling past reeds —
+  // and records it to a short silent WebM clip via canvas.captureStream().
+  function recordDuckAnimation(){
+    return new Promise((resolve, reject) => {
+      const W = 480, H = 300;
+      const canvas = document.createElement("canvas");
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d");
+
+      let stream;
+      try{ stream = canvas.captureStream(30); }
+      catch(e){ return reject(e); }
+
+      let recorder;
+      try{ recorder = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp9" }); }
+      catch(e1){
+        try{ recorder = new MediaRecorder(stream); }
+        catch(e2){ return reject(e2); }
+      }
+
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if(e.data && e.data.size) chunks.push(e.data); };
+      recorder.onstop = () => resolve(new Blob(chunks, { type: "video/webm" }));
+      recorder.onerror = reject;
+
+      const DURATION_MS = 3500;
+      const start = performance.now();
+
+      function drawDuck(t, cx, cy){
+        // simple original waddling-duck silhouette, built from primitive shapes
+        const waddle = Math.sin(t * 9) * 6;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(waddle * 0.03);
+
+        ctx.fillStyle = "#151515";
+        // body
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 26, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // head
+        ctx.beginPath();
+        ctx.ellipse(20, -18, 12, 11, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // bill
+        ctx.beginPath();
+        ctx.moveTo(30, -18);
+        ctx.lineTo(42, -15);
+        ctx.lineTo(30, -12);
+        ctx.closePath();
+        ctx.fill();
+        // tail
+        ctx.beginPath();
+        ctx.moveTo(-24, 2);
+        ctx.lineTo(-38, -8 + waddle * 0.4);
+        ctx.lineTo(-22, -6);
+        ctx.closePath();
+        ctx.fill();
+        // legs (alternating waddle)
+        const legSwing = Math.sin(t * 9);
+        ctx.fillRect(-6 + legSwing * 4, 14, 4, 10);
+        ctx.fillRect(8 - legSwing * 4, 14, 4, 10);
+
+        ctx.restore();
+      }
+
+      function drawFrame(now){
+        const t = (now - start) / 1000;
+        // sky/water backdrop
+        ctx.fillStyle = "#eef3f6";
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = "#dbe7ec";
+        ctx.fillRect(0, H - 70, W, 70);
+
+        // duck waddles left-to-right and loops
+        const progress = (t / (DURATION_MS / 1000)) % 1;
+        const cx = -40 + progress * (W + 80);
+        const cy = H - 90 + Math.abs(Math.sin(t * 9)) * -6;
+        drawDuck(t, cx, cy);
+
+        // a few simple original reed shapes for scenery
+        ctx.fillStyle = "#8fae9c";
+        for(let i = 0; i < 4; i++){
+          const rx = 40 + i * 130;
+          const sway = Math.sin(t * 1.5 + i) * 4;
+          ctx.beginPath();
+          ctx.moveTo(rx, H - 70);
+          ctx.quadraticCurveTo(rx + sway, H - 130, rx + sway * 1.5, H - 170);
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "#8fae9c";
+          ctx.stroke();
+        }
+
+        if(now - start < DURATION_MS){
+          requestAnimationFrame(drawFrame);
+        } else {
+          recorder.stop();
+        }
+      }
+
+      recorder.start();
+      requestAnimationFrame(drawFrame);
+    });
+  }
 
   attachBtn.addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", () => {
