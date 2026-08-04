@@ -405,6 +405,33 @@
     letter-spacing:0.05em;
     flex-shrink:0;
   }
+  .roster-tag.muted-tag{
+    color:var(--error-soft-text);
+    border-color:var(--error-soft-border);
+    margin-left:6px;
+  }
+  .roster-item{ flex-wrap:wrap; }
+  .roster-admin-actions{
+    display:flex;
+    gap:5px;
+    width:100%;
+    margin:2px 0 4px 35px;
+  }
+  .roster-admin-btn{
+    width:22px; height:22px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:var(--surface-sunken);
+    color:var(--text-muted);
+    font-size:11px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:border-color .12s ease, color .12s ease;
+  }
+  .roster-admin-btn:hover{ border-color:var(--accent-teal); color:var(--accent-teal); }
+  .roster-admin-btn.kick-btn:hover{ border-color:var(--error); color:var(--error); }
 
   .roster-toggle-btn{ display:none; }
 
@@ -474,6 +501,19 @@
     font-size:15px;
     letter-spacing:0.03em;
   }
+  .admin-badge{
+    display:none;
+    font-family:'Oswald',sans-serif;
+    font-size:9.5px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--on-dark-text);
+    background:var(--accent-brass);
+    padding:2px 8px;
+    border-radius:9px;
+    font-weight:600;
+  }
+  .admin-badge.visible{ display:inline-block; }
   .on-air{
     display:flex;
     align-items:center;
@@ -813,6 +853,107 @@
     .console{ padding:22px 18px 20px; }
     .theme-switcher{ top:10px; right:10px; }
   }
+
+  /* ================= ADMIN PASSWORD MODAL ================= */
+  .admin-modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.55);
+    z-index:200;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .admin-modal-overlay.visible{ display:flex; }
+  .admin-modal{
+    width:100%;
+    max-width:340px;
+    background:linear-gradient(180deg,var(--bg-panel),var(--bg-panel-2));
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    padding:22px 22px 20px;
+  }
+  .admin-modal.shake{ animation:modalShake .35s ease; }
+  @keyframes modalShake{
+    0%,100%{ transform:translateX(0); }
+    20%{ transform:translateX(-7px); }
+    40%{ transform:translateX(6px); }
+    60%{ transform:translateX(-4px); }
+    80%{ transform:translateX(3px); }
+  }
+  .admin-modal-title{
+    font-family:'Oswald',sans-serif;
+    font-size:19px;
+    letter-spacing:0.03em;
+    margin-bottom:6px;
+  }
+  .admin-modal-sub{
+    font-size:12.5px;
+    color:var(--text-muted);
+    line-height:1.5;
+    margin-bottom:14px;
+  }
+  .admin-modal-input{
+    width:100%;
+    background:var(--input-bg);
+    border:1px solid var(--border);
+    color:var(--text-primary);
+    padding:11px 12px;
+    border-radius:8px;
+    font-size:14px;
+    font-family:'Inter',sans-serif;
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .admin-modal-input:focus{
+    border-color:var(--accent-teal);
+    box-shadow:0 0 0 3px var(--accent-teal-glow);
+  }
+  .admin-modal-error{
+    display:none;
+    color:var(--error-soft-text);
+    font-size:12px;
+    margin-top:8px;
+  }
+  .admin-modal-error.visible{ display:block; }
+  .admin-modal-actions{
+    display:flex;
+    gap:8px;
+    margin-top:16px;
+  }
+  .admin-modal-cancel{
+    flex:1;
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-muted);
+    padding:10px 0;
+    border-radius:8px;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .admin-modal-cancel:hover{ border-color:var(--error); color:var(--error); }
+  .admin-modal-submit{
+    flex:1;
+    background:var(--accent-teal);
+    color:var(--on-teal-text);
+    border:none;
+    padding:10px 0;
+    border-radius:8px;
+    cursor:pointer;
+    font-family:'Oswald',sans-serif;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    font-size:13px;
+    font-weight:600;
+    transition:filter .12s ease;
+  }
+  .admin-modal-submit:hover{ filter:brightness(1.08); }
+
+  .delete-trigger{ font-size:11px; }
 </style>
 </head>
 <body>
@@ -881,6 +1022,7 @@
       <div class="ch-left">
         <div class="ch-freq" id="headerRoomId">CH 00</div>
         <div class="ch-user display" id="headerUsername"></div>
+        <span class="admin-badge" id="adminBadge">Admin</span>
       </div>
       <div style="display:flex; align-items:center; gap:14px;">
         <div class="on-air"><span class="dot"></span>Live</div>
@@ -916,6 +1058,20 @@
   </div>
 </div>
 
+<!-- ================= ADMIN PASSWORD MODAL ================= -->
+<div class="admin-modal-overlay" id="adminModalOverlay">
+  <div class="admin-modal">
+    <div class="admin-modal-title">🔐 Admin Access</div>
+    <div class="admin-modal-sub">You found it. Enter the password to unlock admin controls for this room.</div>
+    <input type="password" id="adminPasswordInput" class="admin-modal-input" placeholder="Password" autocomplete="off">
+    <div class="admin-modal-error" id="adminModalError">Incorrect password.</div>
+    <div class="admin-modal-actions">
+      <button class="admin-modal-cancel" id="adminModalCancel">Cancel</button>
+      <button class="admin-modal-submit" id="adminModalSubmit">Unlock</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -944,6 +1100,93 @@
     btn.addEventListener("click", () => applyTheme(btn.dataset.swatch));
   });
   applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+
+  /* ---------------------------------------------------------
+     HIDDEN ADMIN UNLOCK — click the dark theme swatch 12 times
+     in a row (clicks reset if you pause too long or click a
+     different swatch) to reveal the password prompt.
+     NOTE: this is a fun, client-side gate — there's no server
+     here to actually enforce it, so it's a "friend group" honor
+     system rather than real security.
+  --------------------------------------------------------- */
+  const ADMIN_PASSWORD = "Duckiedec";
+  const ADMIN_CLICKS_NEEDED = 12;
+  const ADMIN_CLICK_TIMEOUT = 2500;
+  let isAdmin = false;
+  let adminClickCount = 0;
+  let adminClickTimer = null;
+
+  const darkSwatch = document.querySelector('.theme-swatch[data-swatch="dark"]');
+  document.querySelectorAll(".theme-swatch").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if(btn !== darkSwatch){
+        adminClickCount = 0;
+        clearTimeout(adminClickTimer);
+        return;
+      }
+      adminClickCount++;
+      clearTimeout(adminClickTimer);
+      adminClickTimer = setTimeout(() => { adminClickCount = 0; }, ADMIN_CLICK_TIMEOUT);
+      if(adminClickCount >= ADMIN_CLICKS_NEEDED){
+        adminClickCount = 0;
+        clearTimeout(adminClickTimer);
+        openAdminPasswordModal();
+      }
+    });
+  });
+
+  const adminModalOverlay = document.getElementById("adminModalOverlay");
+  const adminModalBox = document.querySelector(".admin-modal");
+  const adminPasswordInput = document.getElementById("adminPasswordInput");
+  const adminModalError = document.getElementById("adminModalError");
+  const adminModalSubmit = document.getElementById("adminModalSubmit");
+  const adminModalCancel = document.getElementById("adminModalCancel");
+  const adminBadge = document.getElementById("adminBadge");
+
+  function openAdminPasswordModal(){
+    adminModalError.classList.remove("visible");
+    adminPasswordInput.value = "";
+    adminModalOverlay.classList.add("visible");
+    setTimeout(() => adminPasswordInput.focus(), 50);
+  }
+  function closeAdminPasswordModal(){
+    adminModalOverlay.classList.remove("visible");
+  }
+  function submitAdminPassword(){
+    if(adminPasswordInput.value === ADMIN_PASSWORD){
+      isAdmin = true;
+      closeAdminPasswordModal();
+      adminBadge.classList.add("visible");
+      showSystemToast("🔓 Admin mode unlocked.");
+      refreshAdminUI();
+    } else {
+      adminModalError.classList.add("visible");
+      adminPasswordInput.value = "";
+      adminPasswordInput.focus();
+      adminModalBox.classList.remove("shake");
+      void adminModalBox.offsetWidth;
+      adminModalBox.classList.add("shake");
+    }
+  }
+  adminModalSubmit.addEventListener("click", submitAdminPassword);
+  adminModalCancel.addEventListener("click", closeAdminPasswordModal);
+  adminPasswordInput.addEventListener("keydown", (e) => {
+    if(e.key === "Enter") submitAdminPassword();
+    if(e.key === "Escape") closeAdminPasswordModal();
+  });
+  adminModalOverlay.addEventListener("click", (e) => {
+    if(e.target === adminModalOverlay) closeAdminPasswordModal();
+  });
+
+  // Re-renders roster (to show kick/mute buttons) and retrofits delete
+  // buttons onto any messages already on screen when admin unlocks.
+  function refreshAdminUI(){
+    renderRoster(lastRoster);
+    messagesEl.querySelectorAll(".msg-row").forEach(row => {
+      const bubbleWrap = row.querySelector(".bubble-wrap");
+      if(bubbleWrap) addDeleteButtonToRow(bubbleWrap, row.dataset.msgId);
+    });
+  }
 
   /* ---------------------------------------------------------
      LANDING SCREEN — dial, tabs, inputs (unchanged visuals)
@@ -1066,6 +1309,9 @@
   let currentUser = null;
   let hostPeerId = null;                 // only meaningful for clients
   const connections = {};                // peerId -> { conn, username }
+  const mutedUsers = new Set();          // host-only: usernames currently muted
+  let lastRoster = [];                   // last roster payload, kept for re-rendering on admin unlock
+  let isMutedLocally = false;            // true if THIS client has been muted by an admin
 
   function setOnAirState(text){
     if(onAirLabel) onAirLabel.lastChild.textContent = text;
@@ -1079,6 +1325,8 @@
     setBusy(false);
     currentRoom = null; currentUser = null; hostPeerId = null; isHost = false;
     Object.keys(connections).forEach(k => delete connections[k]);
+    mutedUsers.clear();
+    applyMuteState(false);
     renderRoster([]);
     sidebarEl.classList.remove("open");
   }
@@ -1114,9 +1362,10 @@
 
   // Host-only: the authoritative participant list, sent to everyone whenever it changes.
   function buildRoster(){
-    const roster = [{ username: currentUser, isHost: true }];
+    const roster = [{ username: currentUser, isHost: true, muted: false }];
     Object.keys(connections).forEach(id => {
-      roster.push({ username: connections[id].username, isHost: false });
+      const username = connections[id].username;
+      roster.push({ username, isHost: false, muted: mutedUsers.has(username) });
     });
     return roster;
   }
@@ -1127,6 +1376,7 @@
   }
 
   function renderRoster(roster){
+    lastRoster = roster || [];
     rosterListEl.innerHTML = "";
     rosterCountEl.textContent = roster.length ? `In this room (${roster.length})` : "In this room";
     roster.forEach(p => {
@@ -1145,6 +1395,31 @@
         tag.className = "roster-tag";
         tag.textContent = "Host";
         row.appendChild(tag);
+      }
+      if(p.muted){
+        const tag = document.createElement("span");
+        tag.className = "roster-tag muted-tag";
+        tag.textContent = "Muted";
+        row.appendChild(tag);
+      }
+      if(isAdmin && p.username !== currentUser && !p.isHost){
+        const actions = document.createElement("div");
+        actions.className = "roster-admin-actions";
+        const muteBtn = document.createElement("button");
+        muteBtn.type = "button";
+        muteBtn.className = "roster-admin-btn";
+        muteBtn.textContent = p.muted ? "🔊" : "🔇";
+        muteBtn.title = p.muted ? "Unmute" : "Mute";
+        muteBtn.addEventListener("click", (e) => { e.stopPropagation(); requestMuteToggle(p.username, !!p.muted); });
+        const kickBtn = document.createElement("button");
+        kickBtn.type = "button";
+        kickBtn.className = "roster-admin-btn kick-btn";
+        kickBtn.textContent = "⛔";
+        kickBtn.title = "Kick";
+        kickBtn.addEventListener("click", (e) => { e.stopPropagation(); requestKick(p.username); });
+        actions.appendChild(muteBtn);
+        actions.appendChild(kickBtn);
+        row.appendChild(actions);
       }
       rosterListEl.appendChild(row);
     });
@@ -1282,10 +1557,16 @@
   // Runs on both host and clients whenever data arrives from a connection.
   function handlePeerData(data, fromPeerId){
     if(data.type === "chat" || data.type === "file"){
+      if(isHost && fromPeerId !== undefined && connections[fromPeerId] && mutedUsers.has(connections[fromPeerId].username)){
+        return; // muted — host silently drops it, never appends or relays
+      }
       appendMessage(data);
       if(isHost) broadcastExcept(fromPeerId, data); // relay to everyone else — the fix
     } else if(data.type === "reaction"){
       applyReaction(data.messageId, data.emoji, data.username);
+      if(isHost) broadcastExcept(fromPeerId, data);
+    } else if(data.type === "delete-message"){
+      performDeleteMessage(data.messageId, false);
       if(isHost) broadcastExcept(fromPeerId, data);
     } else if(data.type === "system"){
       showSystemToast(data.text);
@@ -1300,6 +1581,15 @@
     } else if(data.type === "host-ended"){
       showSystemToast("The host left — this room has ended.");
       setTimeout(() => { destroyPeer(); resetToLanding(); }, 1400);
+    } else if(data.type === "kicked"){
+      showSystemToast("You were removed from the room by an admin.");
+      setTimeout(() => { destroyPeer(); resetToLanding(); }, 1200);
+    } else if(data.type === "mute-state"){
+      applyMuteState(data.muted);
+    } else if(data.type === "admin-kick"){
+      if(isHost) performKick(data.target);
+    } else if(data.type === "admin-mute"){
+      if(isHost) performSetMute(data.target, !!data.muted);
     }
   }
 
@@ -1333,6 +1623,89 @@
       const c = connections[id].conn;
       if(c && c.open) c.send(payload);
     });
+  }
+
+  /* ---------------------------------------------------------
+     ADMIN ACTIONS — kick / mute / delete-message.
+     Only the HOST can actually execute these, since only the
+     host holds real connections to every participant. A
+     non-host admin's request is forwarded to the host to carry
+     out. There's no cryptographic enforcement here — this is a
+     fun feature for a trusted room, not real moderation security.
+  --------------------------------------------------------- */
+  function requestKick(targetUsername){
+    if(!confirm(`Kick ${targetUsername} from the room?`)) return;
+    if(isHost){
+      performKick(targetUsername);
+    } else if(hostPeerId && connections[hostPeerId] && connections[hostPeerId].conn.open){
+      connections[hostPeerId].conn.send({ type: "admin-kick", target: targetUsername });
+    }
+  }
+  function requestMuteToggle(targetUsername, currentlyMuted){
+    const newState = !currentlyMuted;
+    if(isHost){
+      performSetMute(targetUsername, newState);
+    } else if(hostPeerId && connections[hostPeerId] && connections[hostPeerId].conn.open){
+      connections[hostPeerId].conn.send({ type: "admin-mute", target: targetUsername, muted: newState });
+    }
+  }
+  function requestDeleteMessage(messageId){
+    if(!confirm("Delete this message for everyone?")) return;
+    performDeleteMessage(messageId, true);
+  }
+
+  // Host-only: actually removes a participant from the room.
+  function performKick(targetUsername){
+    const peerId = Object.keys(connections).find(id => connections[id].username === targetUsername);
+    if(!peerId) return;
+    const conn = connections[peerId].conn;
+    if(conn && conn.open) conn.send({ type: "kicked" });
+    delete connections[peerId];
+    setTimeout(() => { try{ conn.close(); }catch(e){} }, 150);
+    mutedUsers.delete(targetUsername);
+    showSystemToast(`${targetUsername} was removed by an admin.`);
+    broadcastExcept(peerId, { type: "system", text: `${targetUsername} was removed by an admin.` });
+    updateRosterAndBroadcast();
+  }
+
+  // Host-only: sets a participant's muted state and notifies them directly.
+  function performSetMute(targetUsername, muted){
+    const peerId = Object.keys(connections).find(id => connections[id].username === targetUsername);
+    if(!peerId) return;
+    if(muted) mutedUsers.add(targetUsername); else mutedUsers.delete(targetUsername);
+    const conn = connections[peerId].conn;
+    if(conn && conn.open) conn.send({ type: "mute-state", muted });
+    showSystemToast(`${targetUsername} was ${muted ? "muted" : "unmuted"} by an admin.`);
+    broadcastExcept(peerId, { type: "system", text: `${targetUsername} was ${muted ? "muted" : "unmuted"} by an admin.` });
+    updateRosterAndBroadcast();
+  }
+
+  // Runs on every peer: removes a message bubble locally, then relays if requested.
+  function performDeleteMessage(messageId, relay){
+    const row = messagesEl.querySelector(`[data-msg-id="${CSS.escape(messageId)}"]`);
+    if(row) row.remove();
+    delete reactions[messageId];
+    if(!messagesEl.querySelector(".msg-row")){
+      messagesEl.innerHTML = '<div class="empty-state"><span class="display">Nothing here yet</span>No messages, photos, videos or files in this room so far. Send the first one below.</div>';
+    }
+    if(relay){
+      const payload = { type: "delete-message", messageId };
+      if(isHost){
+        broadcastAll(payload);
+      } else if(hostPeerId && connections[hostPeerId] && connections[hostPeerId].conn.open){
+        connections[hostPeerId].conn.send(payload);
+      }
+    }
+  }
+
+  // Applied on the muted client itself — locks the composer until unmuted.
+  function applyMuteState(muted){
+    isMutedLocally = muted;
+    textInput.disabled = muted;
+    sendBtn.disabled = muted;
+    attachBtn.disabled = muted;
+    textInput.placeholder = muted ? "You've been muted by an admin" : "Type a message…";
+    if(muted) showSystemToast("You have been muted by an admin.");
   }
 
   leaveBtn.addEventListener("click", () => {
@@ -1416,6 +1789,7 @@
 
     bubbleWrap.appendChild(bubble);
     bubbleWrap.appendChild(trigger);
+    if(isAdmin) addDeleteButtonToRow(bubbleWrap, msg.id);
     row.appendChild(bubbleWrap);
 
     const badges = document.createElement("div");
@@ -1424,6 +1798,18 @@
     renderReactionBadges(msg.id);
 
     return row;
+  }
+
+  // Admin-only delete button, added inline next to the react button.
+  function addDeleteButtonToRow(bubbleWrap, messageId){
+    if(bubbleWrap.querySelector(".delete-trigger")) return;
+    const del = document.createElement("button");
+    del.className = "react-trigger delete-trigger";
+    del.type = "button";
+    del.textContent = "🗑️";
+    del.title = "Delete message (admin)";
+    del.addEventListener("click", (e) => { e.stopPropagation(); requestDeleteMessage(messageId); });
+    bubbleWrap.appendChild(del);
   }
 
   /* ---------------------------------------------------------
